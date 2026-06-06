@@ -1,0 +1,2861 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Encaixe Transportes — Dashboard de Jornada</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700;800;900&family=Barlow+Condensed:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --navy:#0a1628;--navy-mid:#0f2044;--navy-light:#1a3260;
+  --blue:#1a9fe0;--blue-bright:#2dbfff;--blue-pale:#e8f7ff;
+  --white:#ffffff;--gray-1:#f0f6fb;--gray-2:#c8dcea;--gray-3:#7ea8c4;
+  --green:#00d68f;--orange:#ff9f43;--red:#ff4757;
+  --radius:14px;--radius-sm:8px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Barlow',sans-serif;background:var(--navy);color:var(--white);min-height:100vh;overflow-x:hidden}
+
+/* SIDEBAR */
+.sidebar{position:fixed;top:0;left:0;width:272px;height:100vh;background:var(--navy-mid);border-right:1px solid rgba(26,159,224,0.15);display:flex;flex-direction:column;z-index:100;overflow-y:auto}
+.sidebar-logo{padding:26px 22px 18px;border-bottom:1px solid rgba(26,159,224,0.12);display:flex;align-items:center;gap:12px}
+.logo-icon{width:42px;height:42px;flex-shrink:0}
+.logo-text span:first-child{font-family:'Barlow Condensed',sans-serif;font-size:19px;font-weight:800;color:var(--blue-bright);letter-spacing:2px;text-transform:uppercase;display:block}
+.logo-text span:last-child{font-size:9px;font-weight:500;color:var(--gray-3);letter-spacing:3px;text-transform:uppercase;margin-top:2px;display:block}
+
+.sidebar-section{padding:6px 0;border-bottom:1px solid rgba(26,159,224,0.07)}
+.sidebar-section-label{font-size:9px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--gray-3);padding:12px 22px 6px}
+
+.nav-year{user-select:none}
+.nav-year-header{display:flex;align-items:center;justify-content:space-between;padding:10px 22px;cursor:pointer;transition:background .2s}
+.nav-year-header:hover{background:rgba(26,159,224,0.08)}
+.nav-year-header.active{background:rgba(26,159,224,0.1)}
+.nav-year-label{display:flex;align-items:center;gap:9px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;letter-spacing:.5px}
+.nav-dot{width:6px;height:6px;border-radius:50%;background:var(--gray-3);transition:background .2s;flex-shrink:0}
+.nav-year-header.active .nav-dot{background:var(--blue-bright)}
+.chevron{width:14px;height:14px;border-right:2px solid var(--gray-3);border-bottom:2px solid var(--gray-3);transform:rotate(45deg) translateY(-3px);transition:transform .25s,border-color .2s}
+.nav-year.open .chevron{transform:rotate(-135deg) translateY(-3px)}
+.nav-year-header.active .chevron{border-color:var(--blue-bright)}
+.tag-semestre{font-size:9px;background:rgba(26,159,224,0.15);border:1px solid rgba(26,159,224,0.25);color:var(--blue-bright);padding:1px 7px;border-radius:10px;font-weight:700;letter-spacing:.5px}
+
+.nav-months{display:none;padding:3px 0 6px 0;flex-direction:column;gap:1px}
+.nav-year.open .nav-months{display:flex}
+
+/* MONTH ITEM */
+.nav-month-item{display:flex;align-items:center;padding:0 12px 0 38px;border-radius:0;transition:background .15s;gap:6px;position:relative}
+.nav-month-item:hover{background:rgba(26,159,224,0.07)}
+.nav-month-item.active{background:rgba(26,159,224,0.14)}
+
+.month-btn{flex:1;background:none;border:none;outline:none;cursor:pointer;text-align:left;padding:8px 6px 8px 0;font-family:'Barlow',sans-serif;font-size:13px;font-weight:500;color:var(--gray-2);transition:color .15s;display:flex;align-items:center;gap:8px}
+.nav-month-item:hover .month-btn{color:var(--white)}
+.nav-month-item.active .month-btn{color:var(--blue-bright);font-weight:600}
+.nav-month-item.no-data .month-btn{color:var(--gray-3);opacity:.6}
+
+/* Status dot on month */
+.month-status{width:7px;height:7px;border-radius:50%;flex-shrink:0;border:1.5px solid var(--gray-3);transition:all .2s}
+.nav-month-item.has-data .month-status{background:var(--green);border-color:var(--green);box-shadow:0 0 6px rgba(0,214,143,0.5)}
+.nav-month-item.active .month-status{border-color:var(--blue-bright)}
+
+/* Upload btn per month */
+.month-upload-btn{width:26px;height:26px;border-radius:6px;border:1px solid rgba(26,159,224,0.2);background:rgba(26,159,224,0.06);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s,border-color .2s;flex-shrink:0;opacity:0}
+.nav-month-item:hover .month-upload-btn{opacity:1}
+.nav-month-item.has-data .month-upload-btn{opacity:.6;border-color:rgba(0,214,143,0.3);background:rgba(0,214,143,0.06)}
+.nav-month-item.has-data:hover .month-upload-btn{opacity:1}
+.month-upload-btn:hover{background:rgba(26,159,224,0.18) !important;border-color:var(--blue-bright) !important}
+.month-upload-btn svg{pointer-events:none}
+
+/* TOOLTIP */
+.month-upload-btn[title]:hover::after{content:attr(title);position:absolute;right:44px;top:50%;transform:translateY(-50%);background:var(--navy);border:1px solid rgba(26,159,224,0.25);color:var(--gray-2);font-size:11px;padding:4px 8px;border-radius:5px;white-space:nowrap;z-index:200;pointer-events:none}
+
+.sidebar-footer{margin-top:auto;padding:18px 22px;border-top:1px solid rgba(26,159,224,0.1)}
+.sidebar-footer p{font-size:11px;color:var(--gray-3);line-height:1.5}
+
+/* MAIN */
+.main{margin-left:272px;min-height:100vh;display:flex;flex-direction:column}
+
+/* TOPBAR */
+.topbar{background:rgba(15,32,68,0.97);backdrop-filter:blur(12px);border-bottom:1px solid rgba(26,159,224,0.12);padding:0 36px;height:66px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:90}
+.topbar-left h1{font-family:'Barlow Condensed',sans-serif;font-size:21px;font-weight:700;letter-spacing:.5px}
+.topbar-left p{font-size:12px;color:var(--gray-3)}
+.topbar-right{display:flex;align-items:center;gap:14px}
+.period-badge{background:rgba(26,159,224,0.12);border:1px solid rgba(26,159,224,0.25);color:var(--blue-bright);padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+.upload-btn-top{display:flex;align-items:center;gap:7px;background:var(--blue);color:var(--white);border:none;padding:9px 20px;border-radius:var(--radius-sm);font-family:'Barlow',sans-serif;font-size:13px;font-weight:700;letter-spacing:.3px;cursor:pointer;transition:background .2s,transform .15s}
+.upload-btn-top:hover{background:var(--blue-bright);transform:translateY(-1px)}
+
+/* CONTENT */
+.content{padding:30px 36px;flex:1}
+
+/* EMPTY STATE */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:62vh;text-align:center;gap:18px}
+.empty-icon{width:76px;height:76px;background:rgba(26,159,224,0.07);border:2px dashed rgba(26,159,224,0.28);border-radius:18px;display:flex;align-items:center;justify-content:center;animation:pulse 2.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{border-color:rgba(26,159,224,0.2)}50%{border-color:rgba(26,159,224,0.55)}}
+.empty-state h2{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:700}
+.empty-state p{font-size:13px;color:var(--gray-3);max-width:420px;line-height:1.65}
+
+.drop-zone{border:2px dashed rgba(26,159,224,0.3);border-radius:var(--radius);padding:36px 56px;margin-top:8px;cursor:pointer;transition:border-color .2s,background .2s;background:rgba(26,159,224,0.02)}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--blue-bright);background:rgba(26,159,224,0.07)}
+.drop-zone strong{display:block;font-size:14px;color:var(--blue-bright);font-weight:600;margin-bottom:5px}
+.drop-zone p{font-size:12px;color:var(--gray-3);margin-top:0}
+
+/* NO DATA STATE */
+.no-data-state{display:none;flex-direction:column;align-items:center;justify-content:center;min-height:55vh;text-align:center;gap:14px}
+.no-data-state.show{display:flex}
+.no-data-icon{width:64px;height:64px;background:rgba(255,159,67,0.07);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:30px}
+.no-data-state h3{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700}
+.no-data-state p{font-size:13px;color:var(--gray-3);line-height:1.6}
+.no-data-upload-btn{margin-top:6px;display:flex;align-items:center;gap:8px;background:rgba(26,159,224,0.1);border:1px solid rgba(26,159,224,0.3);color:var(--blue-bright);padding:11px 24px;border-radius:var(--radius-sm);font-family:'Barlow',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:background .2s}
+.no-data-upload-btn:hover{background:rgba(26,159,224,0.2)}
+
+/* ALERT */
+.alert-banner{display:none;align-items:center;gap:12px;background:rgba(255,71,87,0.08);border:1px solid rgba(255,71,87,0.3);border-radius:var(--radius-sm);padding:11px 16px;margin-bottom:20px;font-size:13px;color:var(--red);font-weight:500}
+.alert-banner.show{display:flex}
+.alert-success{background:rgba(0,214,143,0.08) !important;border-color:rgba(0,214,143,0.3) !important;color:var(--green) !important}
+
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:26px}
+.kpi-card{background:var(--navy-mid);border:1px solid rgba(26,159,224,0.1);border-radius:var(--radius);padding:20px 22px;position:relative;overflow:hidden;transition:transform .2s,border-color .2s}
+.kpi-card:hover{transform:translateY(-2px);border-color:rgba(26,159,224,0.28)}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.kpi-card.blue::before{background:linear-gradient(90deg,var(--blue),var(--blue-bright))}
+.kpi-card.green::before{background:linear-gradient(90deg,#00b877,var(--green))}
+.kpi-card.orange::before{background:linear-gradient(90deg,#e87c1e,var(--orange))}
+.kpi-card.red::before{background:linear-gradient(90deg,#e03042,var(--red))}
+.kpi-label{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--gray-3);margin-bottom:10px}
+.kpi-value{font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:800;color:var(--white);line-height:1;margin-bottom:5px}
+.kpi-sub{font-size:11px;color:var(--gray-3)}
+.kpi-icon{position:absolute;right:18px;top:18px;opacity:.1;font-size:38px}
+
+/* SECTION TITLE */
+.section-title{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--gray-2);margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.section-title::after{content:'';flex:1;height:1px;background:rgba(26,159,224,0.12)}
+
+/* CHARTS */
+.charts-row{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;margin-bottom:26px}
+.chart-card{background:var(--navy-mid);border:1px solid rgba(26,159,224,0.1);border-radius:var(--radius);padding:20px 22px}
+.chart-card-title{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--gray-2);margin-bottom:18px;display:flex;align-items:center;justify-content:space-between}
+.chart-sub{font-size:11px;color:var(--gray-3);font-weight:400;text-transform:none;letter-spacing:0}
+.chart-wrap{position:relative;height:210px}
+
+/* TABLE */
+.table-card{background:var(--navy-mid);border:1px solid rgba(26,159,224,0.1);border-radius:var(--radius);overflow:hidden;margin-bottom:26px}
+.table-header-bar{padding:16px 22px;border-bottom:1px solid rgba(26,159,224,0.09);display:flex;align-items:center;justify-content:space-between}
+.table-header-bar h3{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--gray-2)}
+.search-box{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.04);border:1px solid rgba(26,159,224,0.14);border-radius:6px;padding:6px 12px}
+.search-box input{background:none;border:none;outline:none;color:var(--white);font-family:'Barlow',sans-serif;font-size:12px;width:170px}
+.search-box input::placeholder{color:var(--gray-3)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{padding:11px 18px;text-align:left;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--gray-3);background:rgba(10,22,40,0.4);border-bottom:1px solid rgba(26,159,224,0.07)}
+tbody tr{border-bottom:1px solid rgba(26,159,224,0.05);transition:background .15s}
+tbody tr:hover{background:rgba(26,159,224,0.05)}
+tbody tr:last-child{border-bottom:none}
+tbody td{padding:13px 18px;color:var(--white)}
+.driver-name{display:flex;align-items:center;gap:11px;font-weight:600}
+.driver-avatar{width:30px;height:30px;border-radius:7px;background:linear-gradient(135deg,var(--blue),var(--navy-light));display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:800;flex-shrink:0}
+.pill{display:inline-block;padding:3px 9px;border-radius:20px;font-size:12px;font-weight:700}
+.pill-blue{background:rgba(26,159,224,0.12);color:var(--blue-bright)}
+.pill-green{background:rgba(0,214,143,0.1);color:var(--green)}
+.nc-wrap{display:flex;align-items:center;gap:9px}
+.nc-track{flex:1;max-width:70px;height:4px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden}
+.nc-fill{height:100%;border-radius:3px}
+.num{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700}
+
+/* CONFORMITY ROW */
+.conformity-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:26px}
+.conf-card{background:var(--navy-mid);border:1px solid rgba(26,159,224,0.1);border-radius:var(--radius);padding:20px 22px}
+.conf-title{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--gray-3);margin-bottom:16px}
+.nc-rank-item{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid rgba(26,159,224,0.05)}
+.nc-rank-item:last-child{border-bottom:none}
+.nc-rank-name{font-size:13px;font-weight:500}
+.nc-rank-right{display:flex;align-items:center;gap:9px}
+
+/* HIDDEN INPUT */
+#fileInput{display:none}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:var(--navy)}
+::-webkit-scrollbar-thumb{background:rgba(26,159,224,0.28);border-radius:3px}
+
+@media(max-width:1100px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.charts-row,.conformity-row{grid-template-columns:1fr}}
+
+/* ══════════════════════════════════════
+   SIGCORJ SECTION
+══════════════════════════════════════ */
+.sigcorj-page { display:flex; flex-direction:column; gap:0; animation:fadeUp .5s ease both; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+
+/* HERO */
+.sigcorj-hero {
+  position:relative; overflow:hidden;
+  background: linear-gradient(135deg, #0d1e3a 0%, #0f2044 50%, #0a1628 100%);
+  border:1px solid rgba(26,159,224,0.15); border-radius:var(--radius);
+  padding:52px 56px 48px; margin-bottom:20px;
+}
+.sigcorj-hero::before {
+  content:''; position:absolute; top:-60px; right:-60px;
+  width:340px; height:340px; border-radius:50%;
+  background:radial-gradient(circle, rgba(26,159,224,0.12) 0%, transparent 70%);
+  pointer-events:none;
+}
+.sigcorj-hero::after {
+  content:''; position:absolute; bottom:-80px; left:30%;
+  width:260px; height:260px; border-radius:50%;
+  background:radial-gradient(circle, rgba(45,191,255,0.07) 0%, transparent 70%);
+  pointer-events:none;
+}
+.sigcorj-eyebrow {
+  display:inline-flex; align-items:center; gap:8px;
+  background:rgba(26,159,224,0.1); border:1px solid rgba(26,159,224,0.22);
+  border-radius:20px; padding:5px 14px; margin-bottom:20px;
+  font-size:10px; font-weight:700; letter-spacing:2.5px;
+  text-transform:uppercase; color:var(--blue-bright);
+}
+.sigcorj-eyebrow-dot { width:6px; height:6px; border-radius:50%; background:var(--blue-bright); animation:blink 2s ease-in-out infinite; }
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.sigcorj-hero h1 {
+  font-family:'Barlow Condensed',sans-serif; font-size:42px; font-weight:800;
+  line-height:1.08; letter-spacing:.5px; margin-bottom:8px;
+  background:linear-gradient(135deg,#fff 30%,var(--blue-bright));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+}
+.sigcorj-hero h1 em { font-style:normal; -webkit-text-fill-color:var(--blue-bright); }
+.sigcorj-hero-sub {
+  font-size:14px; color:var(--gray-2); line-height:1.7;
+  max-width:680px; margin-bottom:28px; font-weight:400;
+}
+.sigcorj-hero-sub strong { color:var(--white); font-weight:600; }
+.sigcorj-hero-desc {
+  font-size:13px; color:var(--gray-3); line-height:1.75;
+  max-width:700px; border-left:2px solid rgba(26,159,224,0.3);
+  padding-left:18px; margin-bottom:32px;
+}
+
+/* VISION BANNER */
+.sigcorj-vision {
+  background:linear-gradient(90deg,rgba(26,159,224,0.1),rgba(45,191,255,0.05),rgba(26,159,224,0.1));
+  border:1px solid rgba(26,159,224,0.2); border-radius:10px;
+  padding:22px 28px; display:flex; align-items:center; gap:32px; flex-wrap:wrap;
+}
+.vision-step { display:flex; align-items:center; gap:10px; }
+.vision-step-icon { font-size:18px; flex-shrink:0; }
+.vision-step-text { font-family:'Barlow Condensed',sans-serif; font-size:13px; font-weight:700; letter-spacing:.5px; color:var(--white); line-height:1.2; }
+.vision-step-text span { display:block; font-size:10px; font-weight:500; color:var(--gray-3); letter-spacing:1px; text-transform:uppercase; margin-top:1px; }
+.vision-arrow { color:rgba(26,159,224,0.4); font-size:18px; font-weight:300; }
+
+/* GRID 2 COLS */
+.sigcorj-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
+.sigcorj-grid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:20px; }
+
+/* CARD BASE */
+.sig-card {
+  background:var(--navy-mid); border:1px solid rgba(26,159,224,0.1);
+  border-radius:var(--radius); padding:24px 22px; position:relative; overflow:hidden;
+  transition:transform .2s,border-color .2s;
+}
+.sig-card:hover { transform:translateY(-2px); border-color:rgba(26,159,224,0.25); }
+.sig-card-accent { position:absolute; top:0; left:0; right:0; height:3px; border-radius:var(--radius) var(--radius) 0 0; }
+.sig-card-icon { font-size:28px; margin-bottom:12px; display:block; }
+.sig-card-title {
+  font-family:'Barlow Condensed',sans-serif; font-size:16px; font-weight:700;
+  letter-spacing:.5px; color:var(--white); margin-bottom:8px;
+}
+.sig-card-text { font-size:12.5px; color:var(--gray-3); line-height:1.7; }
+
+/* HOW IT WORKS */
+.sigcorj-how {
+  background:var(--navy-mid); border:1px solid rgba(26,159,224,0.1);
+  border-radius:var(--radius); padding:28px 28px; margin-bottom:20px;
+}
+.sigcorj-how-header {
+  display:flex; align-items:center; gap:14px; margin-bottom:24px;
+  padding-bottom:18px; border-bottom:1px solid rgba(26,159,224,0.1);
+}
+.sigcorj-how-icon {
+  width:44px;height:44px; border-radius:12px;
+  background:rgba(26,159,224,0.1); border:1px solid rgba(26,159,224,0.2);
+  display:flex; align-items:center; justify-content:center; font-size:20px;
+  flex-shrink:0;
+}
+.sigcorj-how-header h3 { font-family:'Barlow Condensed',sans-serif; font-size:20px; font-weight:700; letter-spacing:.5px; }
+.sigcorj-how-header p { font-size:12px; color:var(--gray-3); margin-top:2px; }
+.pillar-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+.pillar-item {
+  display:flex; align-items:flex-start; gap:10px;
+  background:rgba(26,159,224,0.04); border:1px solid rgba(26,159,224,0.08);
+  border-radius:var(--radius-sm); padding:13px 14px;
+  transition:background .2s;
+}
+.pillar-item:hover { background:rgba(26,159,224,0.09); }
+.pillar-num {
+  font-family:'Barlow Condensed',sans-serif; font-size:20px; font-weight:800;
+  color:rgba(26,159,224,0.25); line-height:1; flex-shrink:0; margin-top:1px;
+}
+.pillar-text { font-size:12px; color:var(--gray-2); line-height:1.55; font-weight:500; }
+
+/* BENEFITS */
+.benefits-card {
+  background:var(--navy-mid); border:1px solid rgba(26,159,224,0.1);
+  border-radius:var(--radius); padding:28px 28px; margin-bottom:20px;
+}
+.benefits-header { margin-bottom:22px; }
+.benefits-header h3 { font-family:'Barlow Condensed',sans-serif; font-size:20px; font-weight:700; letter-spacing:.5px; margin-bottom:4px; }
+.benefits-header p { font-size:12px; color:var(--gray-3); }
+.benefits-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+.benefit-item {
+  display:flex; align-items:center; gap:10px;
+  background:rgba(0,214,143,0.04); border:1px solid rgba(0,214,143,0.1);
+  border-radius:var(--radius-sm); padding:11px 14px;
+  transition:background .2s;
+}
+.benefit-item:hover { background:rgba(0,214,143,0.08); }
+.benefit-check {
+  width:20px; height:20px; border-radius:6px;
+  background:rgba(0,214,143,0.12); border:1px solid rgba(0,214,143,0.25);
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.benefit-check svg { display:block; }
+.benefit-text { font-size:12.5px; color:var(--gray-2); font-weight:500; line-height:1.3; }
+
+/* VISION FULL */
+.vision-full {
+  background:linear-gradient(135deg,#0d1e3a,#0f2044);
+  border:1px solid rgba(26,159,224,0.18); border-radius:var(--radius);
+  padding:36px 40px; text-align:center; margin-bottom:28px; position:relative; overflow:hidden;
+}
+.vision-full::before {
+  content:''; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  width:400px; height:200px;
+  background:radial-gradient(ellipse,rgba(26,159,224,0.08) 0%,transparent 70%);
+  pointer-events:none;
+}
+.vision-full-label { font-size:10px; font-weight:700; letter-spacing:3px; text-transform:uppercase; color:var(--gray-3); margin-bottom:20px; }
+.vision-chain { display:flex; align-items:center; justify-content:center; gap:16px; flex-wrap:wrap; }
+.vision-node {
+  background:rgba(26,159,224,0.08); border:1px solid rgba(26,159,224,0.2);
+  border-radius:10px; padding:14px 20px; text-align:center;
+}
+.vision-node-top { font-family:'Barlow Condensed',sans-serif; font-size:18px; font-weight:800; color:var(--white); line-height:1; }
+.vision-node-top em { font-style:normal; color:var(--blue-bright); }
+.vision-node-bot { font-size:9px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--gray-3); margin-top:4px; }
+.vision-sep { font-size:22px; color:rgba(26,159,224,0.35); font-weight:300; }
+
+/* upload drop below hero */
+.sigcorj-start {
+  display:flex; align-items:center; gap:14px;
+  background:rgba(26,159,224,0.06); border:1px dashed rgba(26,159,224,0.25);
+  border-radius:10px; padding:18px 22px; cursor:pointer;
+  transition:border-color .2s,background .2s; margin-top:0;
+}
+.sigcorj-start:hover { border-color:var(--blue-bright); background:rgba(26,159,224,0.1); }
+.sigcorj-start-icon { width:40px;height:40px;border-radius:10px;background:rgba(26,159,224,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+.sigcorj-start-text strong { display:block; font-size:13px; font-weight:700; color:var(--blue-bright); margin-bottom:2px; }
+.sigcorj-start-text span { font-size:11px; color:var(--gray-3); }
+
+@media(max-width:1100px){
+  .sigcorj-grid2,.sigcorj-grid3,.pillar-grid,.benefits-grid{grid-template-columns:1fr 1fr}
+  .sigcorj-hero{padding:36px 28px 32px}
+  .sigcorj-hero h1{font-size:32px}
+  .vision-chain{gap:10px}
+}
+@media(max-width:768px){
+  .sigcorj-grid2,.sigcorj-grid3,.pillar-grid,.benefits-grid{grid-template-columns:1fr}
+}
+
+
+/* ── SIGCORJ PANEL ── */
+.sigcorj-btn {
+  display:flex; align-items:center; gap:9px;
+  margin:10px 14px 0;
+  padding:10px 14px;
+  background:linear-gradient(135deg,rgba(26,159,224,0.12),rgba(26,159,224,0.05));
+  border:1px solid rgba(26,159,224,0.25);
+  border-radius:10px; cursor:pointer;
+  transition:background .2s,border-color .2s;
+  text-align:left; width:calc(100% - 28px);
+}
+.sigcorj-btn:hover{background:linear-gradient(135deg,rgba(26,159,224,0.22),rgba(26,159,224,0.1));border-color:rgba(45,191,255,0.45)}
+.sigcorj-btn.active{background:linear-gradient(135deg,rgba(26,159,224,0.28),rgba(26,159,224,0.14));border-color:var(--blue-bright)}
+.sigcorj-btn-icon{width:28px;height:28px;background:linear-gradient(135deg,var(--blue),var(--navy-light));border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sigcorj-btn-text span:first-child{display:block;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;letter-spacing:1.5px;color:var(--blue-bright);text-transform:uppercase}
+.sigcorj-btn-text span:last-child{display:block;font-size:9px;color:var(--gray-3);letter-spacing:.5px;margin-top:1px}
+
+/* SIGCORJ PAGE */
+.sigcorj-page{display:none;padding:0 0 40px}
+.sigcorj-page.show{display:block}
+
+.sigcorj-hero{
+  background:linear-gradient(135deg,var(--navy-mid) 0%,#0d1e3d 60%,rgba(26,159,224,0.06) 100%);
+  border:1px solid rgba(26,159,224,0.15);
+  border-radius:var(--radius); padding:44px 48px; margin-bottom:28px;
+  position:relative; overflow:hidden;
+}
+.sigcorj-hero::before{
+  content:'';position:absolute;top:-60px;right:-60px;
+  width:280px;height:280px;
+  background:radial-gradient(circle,rgba(26,159,224,0.1) 0%,transparent 70%);
+  pointer-events:none;
+}
+.sigcorj-hero::after{
+  content:'SIGCORJ';position:absolute;right:40px;bottom:-10px;
+  font-family:'Barlow Condensed',sans-serif;font-size:110px;font-weight:900;
+  color:rgba(26,159,224,0.04);letter-spacing:-2px;pointer-events:none;line-height:1;
+}
+.sigcorj-hero-tag{
+  display:inline-flex;align-items:center;gap:7px;
+  background:rgba(26,159,224,0.12);border:1px solid rgba(26,159,224,0.28);
+  color:var(--blue-bright);padding:5px 14px;border-radius:20px;
+  font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
+  margin-bottom:18px;
+}
+.sigcorj-hero h2{
+  font-family:'Barlow Condensed',sans-serif;font-size:36px;font-weight:900;
+  letter-spacing:.5px;line-height:1.15;margin-bottom:10px;
+  background:linear-gradient(90deg,var(--white),var(--blue-bright));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.sigcorj-hero h2 span{-webkit-text-fill-color:var(--blue-bright)}
+.sigcorj-hero p{font-size:14px;color:var(--gray-2);line-height:1.75;max-width:640px;font-weight:400}
+
+/* HOW IT WORKS */
+.sigcorj-grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:28px}
+.sigcorj-grid3{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px}
+
+.info-card{background:var(--navy-mid);border:1px solid rgba(26,159,224,0.1);border-radius:var(--radius);padding:24px 26px;position:relative;overflow:hidden;transition:border-color .2s,transform .2s}
+.info-card:hover{border-color:rgba(26,159,224,0.28);transform:translateY(-2px)}
+.info-card-accent{position:absolute;top:0;left:0;width:3px;height:100%;border-radius:3px 0 0 3px}
+.info-card h4{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;letter-spacing:.5px;margin-bottom:10px;color:var(--white)}
+.info-card p{font-size:13px;color:var(--gray-2);line-height:1.65}
+
+/* HOW WORKS PILLARS */
+.pillar-list{display:flex;flex-direction:column;gap:10px}
+.pillar-item{display:flex;align-items:center;gap:12px;padding:10px 14px;background:rgba(26,159,224,0.04);border:1px solid rgba(26,159,224,0.1);border-radius:9px;font-size:13px;color:var(--gray-2);transition:background .2s,border-color .2s}
+.pillar-item:hover{background:rgba(26,159,224,0.09);border-color:rgba(26,159,224,0.22);color:var(--white)}
+.pillar-dot{width:8px;height:8px;border-radius:50%;background:var(--blue-bright);flex-shrink:0;box-shadow:0 0 8px rgba(45,191,255,0.5)}
+
+/* OBJECTIVES */
+.obj-card{background:var(--navy-mid);border:1px solid rgba(26,159,224,0.1);border-radius:var(--radius);padding:22px 22px 20px;transition:border-color .2s,transform .2s;position:relative;overflow:hidden}
+.obj-card:hover{border-color:rgba(26,159,224,0.28);transform:translateY(-3px)}
+.obj-icon{font-size:28px;margin-bottom:12px;display:block}
+.obj-card h4{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:800;letter-spacing:.5px;margin-bottom:8px;color:var(--white)}
+.obj-card p{font-size:12px;color:var(--gray-3);line-height:1.6}
+.obj-card::before{content:'';position:absolute;bottom:0;left:0;right:0;height:2px}
+.obj-card.c1::before{background:linear-gradient(90deg,var(--blue),var(--blue-bright))}
+.obj-card.c2::before{background:linear-gradient(90deg,#00b877,var(--green))}
+.obj-card.c3::before{background:linear-gradient(90deg,#e87c1e,var(--orange))}
+.obj-card.c4::before{background:linear-gradient(90deg,#a855f7,#7c3aed)}
+
+/* BENEFITS */
+.benefits-card{background:var(--navy-mid);border:1px solid rgba(26,159,224,0.1);border-radius:var(--radius);padding:26px 28px;margin-bottom:28px}
+.benefits-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:18px}
+.benefit-item{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:rgba(26,159,224,0.04);border:1px solid rgba(26,159,224,0.09);border-radius:9px;font-size:12px;color:var(--gray-2);line-height:1.5;transition:background .2s}
+.benefit-item:hover{background:rgba(26,159,224,0.1);color:var(--white)}
+.benefit-check{color:var(--green);font-size:14px;flex-shrink:0;margin-top:1px}
+
+/* VISION */
+.vision-card{
+  background:linear-gradient(135deg,var(--navy-mid),rgba(26,159,224,0.06));
+  border:1px solid rgba(26,159,224,0.18);border-radius:var(--radius);
+  padding:36px 40px;text-align:center;
+}
+.vision-steps{display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:wrap;margin-top:24px}
+.vision-step{text-align:center;padding:16px 24px}
+.vision-step-word{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;letter-spacing:.5px;color:var(--white);display:block}
+.vision-step-sub{font-size:11px;color:var(--gray-3);display:block;margin-top:3px;letter-spacing:.5px}
+.vision-arrow{color:var(--blue-bright);font-size:20px;opacity:.6;align-self:center}
+.vision-step:nth-child(1) .vision-step-word{color:var(--gray-2)}
+.vision-step:nth-child(3) .vision-step-word{color:var(--blue-bright)}
+.vision-step:nth-child(5) .vision-step-word{color:var(--green)}
+.vision-step:nth-child(7) .vision-step-word{background:linear-gradient(90deg,var(--orange),#ffcf7a);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.vision-title{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--gray-3);margin-bottom:4px}
+.vision-headline{font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;color:var(--white)}
+
+@media(max-width:1100px){
+  .sigcorj-grid3{grid-template-columns:repeat(2,1fr)}
+  .benefits-grid{grid-template-columns:repeat(2,1fr)}
+  .sigcorj-grid2{grid-template-columns:1fr}
+}
+
+/* ── NC & MOTORISTAS MENUS ── */
+.sidebar-section-nc { border-top: 1px solid rgba(255,71,87,0.15); }
+.sidebar-section-mot { border-top: 1px solid rgba(255,159,67,0.15); }
+
+.section-label-nc { color: #ff6b7a !important; }
+.section-label-mot { color: var(--orange) !important; }
+
+.nav-year-nc .nav-year-header:hover { background: rgba(255,71,87,0.07) !important; }
+.nav-year-nc .nav-year-header.active { background: rgba(255,71,87,0.1) !important; }
+.nav-year-nc .nav-year-header.active .nav-dot { background: #ff6b7a !important; }
+.nav-year-nc .nav-year-header.active .chevron { border-color: #ff6b7a !important; }
+.nav-year-nc .month-upload-btn { border-color: rgba(255,71,87,0.2); background: rgba(255,71,87,0.05); }
+.nav-year-nc .month-upload-btn svg { stroke: #ff6b7a !important; }
+.nav-year-nc .month-upload-btn:hover { background: rgba(255,71,87,0.15) !important; border-color: #ff6b7a !important; }
+.nav-year-nc .nav-month-item:hover { background: rgba(255,71,87,0.06); }
+.nav-year-nc .nav-month-item.active { background: rgba(255,71,87,0.12); }
+.nav-year-nc .nav-month-item.active .month-btn { color: #ff6b7a; }
+.nav-year-nc .nav-month-item.has-data .month-status { background: #ff6b7a; border-color: #ff6b7a; box-shadow: 0 0 6px rgba(255,107,122,0.5); }
+
+/* Motoristas nav */
+.nav-simple-item { display: flex; align-items: center; padding: 0 12px 0 22px; gap: 8px; }
+.nav-simple-item:hover { background: rgba(255,159,67,0.07); }
+.nav-simple-item.active { background: rgba(255,159,67,0.13); }
+.nav-simple-btn { flex: 1; background: none; border: none; outline: none; cursor: pointer; text-align: left; padding: 9px 6px; font-family: 'Barlow', sans-serif; font-size: 13px; font-weight: 500; color: var(--gray-2); display: flex; align-items: center; gap: 9px; transition: color .15s; }
+.nav-simple-item:hover .nav-simple-btn { color: var(--white); }
+.nav-simple-item.active .nav-simple-btn { color: var(--orange); font-weight: 600; }
+.nav-simple-btn .sub-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--orange); opacity: .5; flex-shrink: 0; }
+.nav-simple-item.active .nav-simple-btn .sub-dot { opacity: 1; box-shadow: 0 0 5px rgba(255,159,67,0.6); }
+
+/* MOTORISTAS year header orange */
+.nav-year-mot .nav-year-header:hover { background: rgba(255,159,67,0.07) !important; }
+.nav-year-mot .nav-year-header.active { background: rgba(255,159,67,0.1) !important; }
+.nav-year-mot .nav-year-header.active .nav-dot { background: var(--orange) !important; }
+.nav-year-mot .nav-year-header.active .chevron { border-color: var(--orange) !important; }
+
+/* NC PAGE */
+.nc-page { display: none; padding: 0 0 40px; }
+.nc-page.show { display: block; }
+
+/* MOTORISTAS PAGE */
+.mot-page { display: none; padding: 0 0 40px; }
+.mot-page.show { display: block; }
+
+.coming-soon-card {
+  background: var(--navy-mid); border: 1px solid rgba(26,159,224,0.1);
+  border-radius: var(--radius); padding: 60px 40px; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+}
+.coming-soon-icon { font-size: 48px; opacity: .7; }
+.coming-soon-card h3 { font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 800; letter-spacing: .5px; }
+.coming-soon-card p { font-size: 13px; color: var(--gray-3); max-width: 380px; line-height: 1.65; }
+.cs-tag { display: inline-block; background: rgba(255,159,67,0.1); border: 1px solid rgba(255,159,67,0.3); color: var(--orange); padding: 5px 14px; border-radius: 20px; font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+
+/* Upload area for NC page */
+.nc-upload-area { border: 2px dashed rgba(255,71,87,0.25); border-radius: var(--radius); padding: 36px; margin-top: 10px; cursor: pointer; transition: border-color .2s, background .2s; background: rgba(255,71,87,0.02); text-align: center; }
+.nc-upload-area:hover { border-color: #ff6b7a; background: rgba(255,71,87,0.06); }
+.nc-upload-area strong { display: block; font-size: 14px; color: #ff6b7a; font-weight: 600; margin-bottom: 5px; }
+.nc-upload-area p { font-size: 12px; color: var(--gray-3); margin: 0; }
+
+/* NC detail table */
+.nc-detail-hero { background: linear-gradient(135deg, var(--navy-mid), rgba(255,71,87,0.05)); border: 1px solid rgba(255,71,87,0.15); border-radius: var(--radius); padding: 28px 32px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; }
+.nc-detail-hero h2 { font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 800; }
+.nc-detail-hero p { font-size: 13px; color: var(--gray-3); margin-top: 4px; }
+.nc-kpi-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-bottom: 24px; }
+
+/* Motorista driver items */
+.mot-driver-item { transition: background .15s; }
+.mot-driver-item:hover { background: rgba(255,159,67,0.08); }
+.mot-driver-item.active { background: rgba(255,159,67,0.15); }
+.mot-driver-item.active .month-btn { color: var(--orange) !important; }
+#mot-drivers-2025::-webkit-scrollbar, #mot-drivers-2026::-webkit-scrollbar { width: 3px; }
+#mot-drivers-2025::-webkit-scrollbar-thumb, #mot-drivers-2026::-webkit-scrollbar-thumb { background: rgba(255,159,67,0.3); border-radius:3px; }
+</style>
+</head>
+<body>
+
+<!-- Hidden file inputs - one global -->
+<input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <svg class="logo-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <rect x="15" y="15" width="70" height="70" rx="12" transform="rotate(45 50 50)" fill="#1a9fe0"/>
+      <rect x="22" y="22" width="56" height="56" rx="8" transform="rotate(45 50 50)" fill="#0f2044"/>
+      <polygon points="28,50 50,28 50,40 72,40 72,60 50,60 50,72" fill="#1a9fe0"/>
+    </svg>
+    <div class="logo-text">
+      <span>ENCAIXE</span>
+      <span>TRANSPORTES</span>
+    </div>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Períodos</div>
+
+    <!-- 2025 -->
+    <div class="nav-year open" id="year-2025">
+      <div class="nav-year-header active" onclick="toggleYear('2025')">
+        <div class="nav-year-label">
+          <span class="nav-dot"></span>2025
+          <span class="tag-semestre">2º SEM</span>
+        </div>
+        <div class="chevron"></div>
+      </div>
+      <div class="nav-months" id="months-2025">
+        <!-- gerado por JS -->
+      </div>
+    </div>
+
+    <!-- 2026 -->
+    <div class="nav-year" id="year-2026">
+      <div class="nav-year-header" onclick="toggleYear('2026')">
+        <div class="nav-year-label"><span class="nav-dot"></span>2026</div>
+        <div class="chevron"></div>
+      </div>
+      <div class="nav-months" id="months-2026"></div>
+    </div>
+
+    <!-- 2027 -->
+    <div class="nav-year" id="year-2027">
+      <div class="nav-year-header" onclick="toggleYear('2027')">
+        <div class="nav-year-label"><span class="nav-dot"></span>2027</div>
+        <div class="chevron"></div>
+      </div>
+      <div class="nav-months" id="months-2027"></div>
+    </div>
+
+    <!-- 2028 -->
+    <div class="nav-year" id="year-2028">
+      <div class="nav-year-header" onclick="toggleYear('2028')">
+        <div class="nav-year-label"><span class="nav-dot"></span>2028</div>
+        <div class="chevron"></div>
+      </div>
+      <div class="nav-months" id="months-2028"></div>
+    </div>
+  </div>
+
+
+
+  <!-- ═══ NÃO CONFORMIDADES ═══ -->
+  <div class="sidebar-section sidebar-section-nc">
+    <div class="sidebar-section-label section-label-nc">Não Conformidades</div>
+
+    <div class="nav-year nav-year-nc" id="nc-year-2025">
+      <div class="nav-year-header" onclick="toggleNCYear('2025')">
+        <div class="nav-year-label">
+          <span class="nav-dot"></span>2025
+          <span class="tag-semestre" style="background:rgba(255,71,87,0.12);border-color:rgba(255,71,87,0.3);color:#ff6b7a">2º SEM</span>
+        </div>
+        <div class="chevron"></div>
+      </div>
+      <div class="nav-months" id="nc-months-2025"></div>
+    </div>
+
+    <div class="nav-year nav-year-nc" id="nc-year-2026">
+      <div class="nav-year-header" onclick="toggleNCYear('2026')">
+        <div class="nav-year-label"><span class="nav-dot"></span>2026</div>
+        <div class="chevron"></div>
+      </div>
+      <div class="nav-months" id="nc-months-2026"></div>
+    </div>
+
+    <div class="nav-year nav-year-nc" id="nc-year-2027">
+      <div class="nav-year-header" onclick="toggleNCYear('2027')">
+        <div class="nav-year-label"><span class="nav-dot"></span>2027</div>
+        <div class="chevron"></div>
+      </div>
+      <div class="nav-months" id="nc-months-2027"></div>
+    </div>
+
+    <div class="nav-year nav-year-nc" id="nc-year-2028">
+      <div class="nav-year-header" onclick="toggleNCYear('2028')">
+        <div class="nav-year-label"><span class="nav-dot"></span>2028</div>
+        <div class="chevron"></div>
+      </div>
+      <div class="nav-months" id="nc-months-2028"></div>
+    </div>
+  </div>
+
+  <!-- ═══ MOTORISTAS ═══ -->
+  <div class="sidebar-section sidebar-section-mot">
+    <div class="sidebar-section-label section-label-mot">Motoristas</div>
+
+    <div class="nav-year nav-year-mot" id="mot-year-arquivos">
+      <div class="nav-year-header" onclick="toggleMotYear()">
+        <div class="nav-year-label"><span class="nav-dot"></span>Arquivos</div>
+        <div class="chevron"></div>
+      </div>
+      <div class="nav-months" id="mot-months">
+
+        <!-- ARQUIVOS 2025 folder -->
+        <div id="mot-folder-2025">
+          <div class="nav-month-item" id="mot-item-2025" style="padding-left:28px;justify-content:space-between" onclick="toggleMotFolder('2025')">
+            <div style="display:flex;align-items:center;gap:9px">
+              <span style="font-size:13px">📁</span>
+              <span class="month-btn" id="mot-folder-btn-2025" style="color:var(--gray-2);padding:7px 0;pointer-events:none">Arquivos 2025</span>
+            </div>
+            <div class="chevron" id="mot-chev-2025" style="border-color:var(--gray-3);margin-right:8px;flex-shrink:0"></div>
+          </div>
+          <div id="mot-drivers-2025" style="display:none;flex-direction:column;gap:1px;max-height:340px;overflow-y:auto">
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-AS" onclick="selectDriver('2025','ADILSON SEBASTIÃO VILLELA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">AS</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">ADILSON SEBASTIÃO VILLELA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-AB" onclick="selectDriver('2025','AGUINALDO BATISTA DE OLIVEIRA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">AB</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">AGUINALDO BATISTA DE OLIVEIRA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-AS" onclick="selectDriver('2025','ALDEMIR SOARES DE SOUZA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">AS</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">ALDEMIR SOARES DE SOUZA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-AD" onclick="selectDriver('2025','ALEXSANDER DA SILVA FORTUNATO')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">AD</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">ALEXSANDER DA SILVA FORTUNATO</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-A" onclick="selectDriver('2025','ALOISIO')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">A</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">ALOISIO</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-AD" onclick="selectDriver('2025','ANDRE DOS SANTOS GOULART')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">AD</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">ANDRE DOS SANTOS GOULART</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-AD" onclick="selectDriver('2025','APARECIDO DONIZETI JACOB')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">AD</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">APARECIDO DONIZETI JACOB</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-CA" onclick="selectDriver('2025','CARLOS ANTONIO FERREIRA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">CA</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">CARLOS ANTONIO FERREIRA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-CC" onclick="selectDriver('2025','CARLOS CORREA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">CC</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">CARLOS CORREA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-CM" onclick="selectDriver('2025','CARLOS MAGRINI')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">CM</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">CARLOS MAGRINI</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-CM" onclick="selectDriver('2025','CELSO MARQUES')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">CM</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">CELSO MARQUES</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-CD" onclick="selectDriver('2025','CLAUDINEI DE OLIVEIRA BATISTA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">CD</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">CLAUDINEI DE OLIVEIRA BATISTA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-CG" onclick="selectDriver('2025','CRISTIANO GUSTAVO BATISTA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">CG</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">CRISTIANO GUSTAVO BATISTA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-DR" onclick="selectDriver('2025','DAIANE ROBERTA MARCHIORO BERNARDES')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">DR</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">DAIANE ROBERTA MARCHIORO BERNARDES</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-D" onclick="selectDriver('2025','DAMIÃO')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">D</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">DAMIÃO</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-DD" onclick="selectDriver('2025','DENIS DE OLIVEIRA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">DD</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">DENIS DE OLIVEIRA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-EZ" onclick="selectDriver('2025','EDILSON ZANHE')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">EZ</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">EDILSON ZANHE</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-ER" onclick="selectDriver('2025','ERLANE RODRIGUES DOS SANTOS')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">ER</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">ERLANE RODRIGUES DOS SANTOS</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-EM" onclick="selectDriver('2025','ERNANE MOREIRA DOS SANTOS')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">EM</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">ERNANE MOREIRA DOS SANTOS</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-EG" onclick="selectDriver('2025','EVERALDO GOMES DA SILVA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">EG</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">EVERALDO GOMES DA SILVA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-FA" onclick="selectDriver('2025','FERNANDO AUGUSTO DE SOUZA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">FA</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">FERNANDO AUGUSTO DE SOUZA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-FC" onclick="selectDriver('2025','FERNANDO CARLOS DA SILVA JUNIOR')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">FC</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">FERNANDO CARLOS DA SILVA JUNIOR</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-GB" onclick="selectDriver('2025','GENIVAL BENTO')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">GB</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">GENIVAL BENTO</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-IT" onclick="selectDriver('2025','ILTON TEODORO DA SILVA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">IT</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">ILTON TEODORO DA SILVA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-IA" onclick="selectDriver('2025','IVANOÉ AUGUSTO CINTRA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">IA</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">IVANOÉ AUGUSTO CINTRA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-JM" onclick="selectDriver('2025','JAIR MARTINS DOS SANTOS')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">JM</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">JAIR MARTINS DOS SANTOS</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-JB" onclick="selectDriver('2025','JOÃO BARBOSA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">JB</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">JOÃO BARBOSA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-JC" onclick="selectDriver('2025','JOÃO CARLOS MARQUES')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">JC</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">JOÃO CARLOS MARQUES</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-JP" onclick="selectDriver('2025','JOÃO PAULO REIS M. SILVA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">JP</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">JOÃO PAULO REIS M. SILVA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-JC" onclick="selectDriver('2025','JOSÉ CARLOS MARIANO')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">JC</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">JOSÉ CARLOS MARIANO</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-JD" onclick="selectDriver('2025','JOSÉ DONIZETE FILETE')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">JD</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">JOSÉ DONIZETE FILETE</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-JJ" onclick="selectDriver('2025','JOVENIL JOSE RODRIGUES')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">JJ</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">JOVENIL JOSE RODRIGUES</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-JC" onclick="selectDriver('2025','JULIO CESAR DURTE')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">JC</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">JULIO CESAR DURTE</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-KT" onclick="selectDriver('2025','KENEDY TRAJANO')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">KT</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">KENEDY TRAJANO</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-LA" onclick="selectDriver('2025','LUIZ ANTONIO ALVES')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">LA</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">LUIZ ANTONIO ALVES</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-LF" onclick="selectDriver('2025','LUIZ FERNANDO HONÓRIO')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">LF</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">LUIZ FERNANDO HONÓRIO</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-MA" onclick="selectDriver('2025','MARCELO APARECIDO DA SILVA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">MA</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">MARCELO APARECIDO DA SILVA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-MD" onclick="selectDriver('2025','MARCIO DONIZETE DA SILVA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">MD</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">MARCIO DONIZETE DA SILVA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-MD" onclick="selectDriver('2025','MATEUS DA SILVEIRA SILVA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">MD</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">MATEUS DA SILVEIRA SILVA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-M" onclick="selectDriver('2025','MIGUEL')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">M</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">MIGUEL</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-MM" onclick="selectDriver('2025','MOIZES MAURICIO FELISBERTO')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">MM</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">MOIZES MAURICIO FELISBERTO</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-NR" onclick="selectDriver('2025','NILSON RAZZE')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">NR</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">NILSON RAZZE</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-OC" onclick="selectDriver('2025','ODAIR CURTI')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">OC</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">ODAIR CURTI</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-PE" onclick="selectDriver('2025','PAULO EDUARDO RIBEIRO')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">PE</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">PAULO EDUARDO RIBEIRO</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-PG" onclick="selectDriver('2025','PEDRO GALVÃO DE OLIVEIRA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">PG</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">PEDRO GALVÃO DE OLIVEIRA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-PJ" onclick="selectDriver('2025','PEDRO JACINTO')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">PJ</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">PEDRO JACINTO</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-RD" onclick="selectDriver('2025','REINALDO DE PAULA FERREIRA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">RD</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">REINALDO DE PAULA FERREIRA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-RR" onclick="selectDriver('2025','REINALDO ROSA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">RR</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">REINALDO ROSA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-RR" onclick="selectDriver('2025','RENATO RIBEIRO LUZ')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">RR</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">RENATO RIBEIRO LUZ</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-RA" onclick="selectDriver('2025','RICARDO ALEXANDRE CORAÇARI')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">RA</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">RICARDO ALEXANDRE CORAÇARI</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-RJ" onclick="selectDriver('2025','RIVELINO JOEL DE ASSIS')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">RJ</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">RIVELINO JOEL DE ASSIS</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-RP" onclick="selectDriver('2025','ROBERTO PAULINO')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">RP</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">ROBERTO PAULINO</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-TL" onclick="selectDriver('2025','TIAGO LINO')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">TL</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">TIAGO LINO</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-VU" onclick="selectDriver('2025','VAGNER UBALDO')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">VU</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">VAGNER UBALDO</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2025-VB" onclick="selectDriver('2025','VALDEIR BATISTA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">VB</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">VALDEIR BATISTA</button>
+        </div>
+          </div>
+        </div>
+
+        <!-- ARQUIVOS 2026 folder -->
+        <div id="mot-folder-2026">
+          <div class="nav-month-item" id="mot-item-2026" style="padding-left:28px;justify-content:space-between" onclick="toggleMotFolder('2026')">
+            <div style="display:flex;align-items:center;gap:9px">
+              <span style="font-size:13px">📁</span>
+              <span class="month-btn" id="mot-folder-btn-2026" style="color:var(--gray-2);padding:7px 0;pointer-events:none">Arquivos 2026</span>
+            </div>
+            <div class="chevron" id="mot-chev-2026" style="border-color:var(--gray-3);margin-right:8px;flex-shrink:0"></div>
+          </div>
+          <div id="mot-drivers-2026" style="display:none;flex-direction:column;gap:1px;max-height:340px;overflow-y:auto">
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-AS" onclick="selectDriver('2026','ADILSON SEBASTIÃO VILLELA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">AS</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">ADILSON SEBASTIÃO VILLELA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-AB" onclick="selectDriver('2026','AGUINALDO BATISTA DE OLIVEIRA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">AB</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">AGUINALDO BATISTA DE OLIVEIRA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-AS" onclick="selectDriver('2026','ALDEMIR SOARES DE SOUZA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">AS</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">ALDEMIR SOARES DE SOUZA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-AD" onclick="selectDriver('2026','ALEXSANDER DA SILVA FORTUNATO')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">AD</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">ALEXSANDER DA SILVA FORTUNATO</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-A" onclick="selectDriver('2026','ALOISIO')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">A</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">ALOISIO</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-AD" onclick="selectDriver('2026','ANDRE DOS SANTOS GOULART')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">AD</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">ANDRE DOS SANTOS GOULART</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-AD" onclick="selectDriver('2026','APARECIDO DONIZETI JACOB')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">AD</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">APARECIDO DONIZETI JACOB</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-CA" onclick="selectDriver('2026','CARLOS ANTONIO FERREIRA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">CA</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">CARLOS ANTONIO FERREIRA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-CC" onclick="selectDriver('2026','CARLOS CORREA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">CC</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">CARLOS CORREA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-CM" onclick="selectDriver('2026','CARLOS MAGRINI')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">CM</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">CARLOS MAGRINI</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-CM" onclick="selectDriver('2026','CELSO MARQUES')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">CM</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">CELSO MARQUES</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-CD" onclick="selectDriver('2026','CLAUDINEI DE OLIVEIRA BATISTA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">CD</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">CLAUDINEI DE OLIVEIRA BATISTA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-CG" onclick="selectDriver('2026','CRISTIANO GUSTAVO BATISTA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">CG</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">CRISTIANO GUSTAVO BATISTA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-DR" onclick="selectDriver('2026','DAIANE ROBERTA MARCHIORO BERNARDES')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">DR</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">DAIANE ROBERTA MARCHIORO BERNARDES</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-D" onclick="selectDriver('2026','DAMIÃO')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">D</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">DAMIÃO</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-DD" onclick="selectDriver('2026','DENIS DE OLIVEIRA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">DD</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">DENIS DE OLIVEIRA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-EZ" onclick="selectDriver('2026','EDILSON ZANHE')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">EZ</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">EDILSON ZANHE</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-ER" onclick="selectDriver('2026','ERLANE RODRIGUES DOS SANTOS')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">ER</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">ERLANE RODRIGUES DOS SANTOS</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-EM" onclick="selectDriver('2026','ERNANE MOREIRA DOS SANTOS')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">EM</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">ERNANE MOREIRA DOS SANTOS</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-EG" onclick="selectDriver('2026','EVERALDO GOMES DA SILVA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">EG</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">EVERALDO GOMES DA SILVA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-FA" onclick="selectDriver('2026','FERNANDO AUGUSTO DE SOUZA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">FA</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">FERNANDO AUGUSTO DE SOUZA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-FC" onclick="selectDriver('2026','FERNANDO CARLOS DA SILVA JUNIOR')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">FC</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">FERNANDO CARLOS DA SILVA JUNIOR</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-GB" onclick="selectDriver('2026','GENIVAL BENTO')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">GB</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">GENIVAL BENTO</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-IT" onclick="selectDriver('2026','ILTON TEODORO DA SILVA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">IT</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">ILTON TEODORO DA SILVA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-IA" onclick="selectDriver('2026','IVANOÉ AUGUSTO CINTRA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">IA</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">IVANOÉ AUGUSTO CINTRA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-JM" onclick="selectDriver('2026','JAIR MARTINS DOS SANTOS')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">JM</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">JAIR MARTINS DOS SANTOS</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-JB" onclick="selectDriver('2026','JOÃO BARBOSA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">JB</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">JOÃO BARBOSA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-JC" onclick="selectDriver('2026','JOÃO CARLOS MARQUES')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">JC</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">JOÃO CARLOS MARQUES</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-JP" onclick="selectDriver('2026','JOÃO PAULO REIS M. SILVA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">JP</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">JOÃO PAULO REIS M. SILVA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-JC" onclick="selectDriver('2026','JOSÉ CARLOS MARIANO')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">JC</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">JOSÉ CARLOS MARIANO</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-JD" onclick="selectDriver('2026','JOSÉ DONIZETE FILETE')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">JD</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">JOSÉ DONIZETE FILETE</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-JJ" onclick="selectDriver('2026','JOVENIL JOSE RODRIGUES')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">JJ</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">JOVENIL JOSE RODRIGUES</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-JC" onclick="selectDriver('2026','JULIO CESAR DURTE')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">JC</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">JULIO CESAR DURTE</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-KT" onclick="selectDriver('2026','KENEDY TRAJANO')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">KT</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">KENEDY TRAJANO</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-LA" onclick="selectDriver('2026','LUIZ ANTONIO ALVES')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">LA</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">LUIZ ANTONIO ALVES</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-LF" onclick="selectDriver('2026','LUIZ FERNANDO HONÓRIO')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">LF</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">LUIZ FERNANDO HONÓRIO</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-MA" onclick="selectDriver('2026','MARCELO APARECIDO DA SILVA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">MA</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">MARCELO APARECIDO DA SILVA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-MD" onclick="selectDriver('2026','MARCIO DONIZETE DA SILVA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">MD</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">MARCIO DONIZETE DA SILVA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-MD" onclick="selectDriver('2026','MATEUS DA SILVEIRA SILVA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">MD</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">MATEUS DA SILVEIRA SILVA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-M" onclick="selectDriver('2026','MIGUEL')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">M</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">MIGUEL</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-MM" onclick="selectDriver('2026','MOIZES MAURICIO FELISBERTO')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">MM</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">MOIZES MAURICIO FELISBERTO</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-NR" onclick="selectDriver('2026','NILSON RAZZE')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">NR</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">NILSON RAZZE</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-OC" onclick="selectDriver('2026','ODAIR CURTI')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">OC</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">ODAIR CURTI</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-PE" onclick="selectDriver('2026','PAULO EDUARDO RIBEIRO')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">PE</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">PAULO EDUARDO RIBEIRO</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-PG" onclick="selectDriver('2026','PEDRO GALVÃO DE OLIVEIRA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">PG</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">PEDRO GALVÃO DE OLIVEIRA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-PJ" onclick="selectDriver('2026','PEDRO JACINTO')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">PJ</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">PEDRO JACINTO</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-RD" onclick="selectDriver('2026','REINALDO DE PAULA FERREIRA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">RD</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">REINALDO DE PAULA FERREIRA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-RR" onclick="selectDriver('2026','REINALDO ROSA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">RR</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">REINALDO ROSA</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-RR" onclick="selectDriver('2026','RENATO RIBEIRO LUZ')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">RR</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">RENATO RIBEIRO LUZ</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-RA" onclick="selectDriver('2026','RICARDO ALEXANDRE CORAÇARI')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">RA</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">RICARDO ALEXANDRE CORAÇARI</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-RJ" onclick="selectDriver('2026','RIVELINO JOEL DE ASSIS')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">RJ</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">RIVELINO JOEL DE ASSIS</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-RP" onclick="selectDriver('2026','ROBERTO PAULINO')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">RP</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">ROBERTO PAULINO</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-TL" onclick="selectDriver('2026','TIAGO LINO')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">TL</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">TIAGO LINO</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-VU" onclick="selectDriver('2026','VAGNER UBALDO')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">VU</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">VAGNER UBALDO</button>
+        </div>
+        <div class="nav-month-item mot-driver-item" id="mot-drv-2026-VB" onclick="selectDriver('2026','VALDEIR BATISTA')" style="padding-left:52px;cursor:pointer">
+          <span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--orange),#8a4f00);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--white);flex-shrink:0;font-family:'Barlow Condensed',sans-serif">VB</span>
+          <button class="month-btn" style="font-size:11.5px;padding:6px 4px;color:var(--gray-3)">VALDEIR BATISTA</button>
+        </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div style="padding:14px 0 0">
+    <button class="sigcorj-btn" id="sigcorjSideBtn" onclick="toggleSigcorj()">
+      <div class="sigcorj-btn-icon">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2dbfff" stroke-width="2.5">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <div class="sigcorj-btn-text">
+        <span>SIGCORJ</span>
+        <span>Sobre o Sistema</span>
+      </div>
+    </button>
+  </div>
+
+  <div class="sidebar-footer">
+    <p>Dashboard de Jornada de Motoristas<br>Encaixe Transportes © 2025</p>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <h1 id="topbarTitle">Dashboard de Jornada</h1>
+      <p id="topbarSub">Selecione um mês no menu e importe a planilha</p>
+    </div>
+    <div class="topbar-right">
+      <div class="period-badge" id="periodBadge">—</div>
+      <button class="upload-btn-top" onclick="triggerUploadForCurrent()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Importar Planilha
+      </button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="alert-banner" id="alertBanner">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12" y2="16.5"/></svg>
+      <span id="alertMsg"></span>
+    </div>
+
+    <!-- ═══ SIGCORJ HOME PAGE ═══ -->
+    <div id="emptyState" class="sigcorj-page">
+
+      <!-- HERO -->
+      <div class="sigcorj-hero">
+        <div class="sigcorj-eyebrow">
+          <span class="sigcorj-eyebrow-dot"></span>
+          Sistema Integrado · Encaixe Transportes
+        </div>
+        <h1>SIGCORJ<br><em>Governança de Jornada</em></h1>
+        <p class="sigcorj-hero-sub">
+          <strong>Sistema Integrado de Governança e Controle de Jornada</strong> — uma metodologia de governança operacional desenvolvida para transformar informações de jornada em <strong>inteligência estratégica</strong> para tomada de decisão.
+        </p>
+        <p class="sigcorj-hero-desc">
+          Através da integração entre indicadores operacionais, auditoria de jornada, acompanhamento preventivo e análise de produtividade, o sistema permite identificar desvios operacionais, reduzir custos com horas extras, aumentar a conformidade trabalhista e fortalecer a eficiência da operação de transporte.
+        </p>
+
+        <!-- VISION INLINE -->
+        <div class="sigcorj-vision">
+          <div class="vision-step">
+            <span class="vision-step-icon">📊</span>
+            <div class="vision-step-text">Jornada<span>Dados brutos</span></div>
+          </div>
+          <span class="vision-arrow">›</span>
+          <div class="vision-step">
+            <span class="vision-step-icon">🔍</span>
+            <div class="vision-step-text">Informação<span>Análise estruturada</span></div>
+          </div>
+          <span class="vision-arrow">›</span>
+          <div class="vision-step">
+            <span class="vision-step-icon">💡</span>
+            <div class="vision-step-text">Decisão<span>Inteligência gerencial</span></div>
+          </div>
+          <span class="vision-arrow">›</span>
+          <div class="vision-step">
+            <span class="vision-step-icon">🚀</span>
+            <div class="vision-step-text">Resultado<span>Eficiência operacional</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- OBJETIVOS -->
+      <div class="sigcorj-grid2" style="margin-bottom:20px">
+        <div class="sig-card">
+          <div class="sig-card-accent" style="background:linear-gradient(90deg,#1a9fe0,#2dbfff)"></div>
+          <span class="sig-card-icon">📉</span>
+          <div class="sig-card-title">Redução de Custos Operacionais</div>
+          <div class="sig-card-text">Monitoramento contínuo das jornadas para redução de horas extras desnecessárias e melhor aproveitamento dos recursos operacionais.</div>
+        </div>
+        <div class="sig-card">
+          <div class="sig-card-accent" style="background:linear-gradient(90deg,#00b877,#00d68f)"></div>
+          <span class="sig-card-icon">⚖️</span>
+          <div class="sig-card-title">Governança e Conformidade</div>
+          <div class="sig-card-text">Garantia de aderência às normas trabalhistas, redução de desvios operacionais e fortalecimento dos controles internos.</div>
+        </div>
+        <div class="sig-card">
+          <div class="sig-card-accent" style="background:linear-gradient(90deg,#e87c1e,#ff9f43)"></div>
+          <span class="sig-card-icon">⚙️</span>
+          <div class="sig-card-title">Eficiência Operacional</div>
+          <div class="sig-card-text">Identificação de oportunidades de melhoria através da análise de dados, promovendo jornadas mais produtivas e alinhadas às necessidades da operação.</div>
+        </div>
+        <div class="sig-card">
+          <div class="sig-card-accent" style="background:linear-gradient(90deg,#7c3aed,#a78bfa)"></div>
+          <span class="sig-card-icon">🎯</span>
+          <div class="sig-card-title">Tomada de Decisão Baseada em Dados</div>
+          <div class="sig-card-text">Transformação de informações operacionais em indicadores estratégicos para suporte à liderança e à diretoria.</div>
+        </div>
+      </div>
+
+      <!-- COMO FUNCIONA -->
+      <div class="sigcorj-how">
+        <div class="sigcorj-how-header">
+          <div class="sigcorj-how-icon">⚙️</div>
+          <div>
+            <h3>Como Funciona</h3>
+            <p>Dados embarcados transformados em inteligência gerencial</p>
+          </div>
+        </div>
+        <p style="font-size:13px;color:var(--gray-3);line-height:1.7;margin-bottom:20px;max-width:760px">
+          O sistema utiliza informações registradas pelos motoristas através das tecnologias embarcadas e sistemas de rastreamento, consolidando os dados em uma estrutura de análise composta por sete pilares operacionais:
+        </p>
+        <div class="pillar-grid">
+          <div class="pillar-item"><span class="pillar-num">01</span><span class="pillar-text">Controle de jornada de trabalho</span></div>
+          <div class="pillar-item"><span class="pillar-num">02</span><span class="pillar-text">Monitoramento de horas extras</span></div>
+          <div class="pillar-item"><span class="pillar-num">03</span><span class="pillar-text">Auditoria de não conformidades (N/C)</span></div>
+          <div class="pillar-item"><span class="pillar-num">04</span><span class="pillar-text">Controle de pausas e repousos</span></div>
+          <div class="pillar-item"><span class="pillar-num">05</span><span class="pillar-text">Acompanhamento de produtividade operacional</span></div>
+          <div class="pillar-item"><span class="pillar-num">06</span><span class="pillar-text">Governança de programações e escalas</span></div>
+          <div class="pillar-item"><span class="pillar-num">07</span><span class="pillar-text">Indicadores gerenciais e financeiros</span></div>
+        </div>
+      </div>
+
+      <!-- BENEFÍCIOS -->
+      <div class="benefits-card">
+        <div class="benefits-header">
+          <h3>Benefícios Gerados</h3>
+          <p>Cada evento operacional se transforma em informação de valor para a gestão</p>
+        </div>
+        <div class="benefits-grid">
+          <div class="benefit-item"><div class="benefit-check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#00d68f" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><span class="benefit-text">Controle preventivo das jornadas</span></div>
+          <div class="benefit-item"><div class="benefit-check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#00d68f" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><span class="benefit-text">Redução de horas extras e custos operacionais</span></div>
+          <div class="benefit-item"><div class="benefit-check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#00d68f" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><span class="benefit-text">Monitoramento de não conformidades</span></div>
+          <div class="benefit-item"><div class="benefit-check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#00d68f" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><span class="benefit-text">Gestão de pausas e tempos improdutivos</span></div>
+          <div class="benefit-item"><div class="benefit-check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#00d68f" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><span class="benefit-text">Maior aderência às programações operacionais</span></div>
+          <div class="benefit-item"><div class="benefit-check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#00d68f" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><span class="benefit-text">Integração entre RH, Operação, Frota e Logística</span></div>
+          <div class="benefit-item"><div class="benefit-check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#00d68f" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><span class="benefit-text">Redução de riscos trabalhistas</span></div>
+          <div class="benefit-item"><div class="benefit-check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#00d68f" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><span class="benefit-text">Geração de indicadores estratégicos</span></div>
+          <div class="benefit-item"><div class="benefit-check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#00d68f" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><span class="benefit-text">Maior previsibilidade operacional</span></div>
+          <div class="benefit-item"><div class="benefit-check"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#00d68f" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><span class="benefit-text">Cultura de gestão orientada por dados</span></div>
+        </div>
+      </div>
+
+      <!-- VISÃO -->
+      <div class="vision-full">
+        <div class="vision-full-label">Nossa Visão</div>
+        <div class="vision-chain">
+          <div class="vision-node"><div class="vision-node-top">Transformar <em>Jornada</em></div><div class="vision-node-bot">em dado</div></div>
+          <span class="vision-sep">→</span>
+          <div class="vision-node"><div class="vision-node-top">Transformar <em>Dado</em></div><div class="vision-node-bot">em informação</div></div>
+          <span class="vision-sep">→</span>
+          <div class="vision-node"><div class="vision-node-top">Transformar <em>Informação</em></div><div class="vision-node-bot">em decisão</div></div>
+          <span class="vision-sep">→</span>
+          <div class="vision-node"><div class="vision-node-top">Transformar <em>Decisão</em></div><div class="vision-node-bot">em resultado</div></div>
+        </div>
+      </div>
+
+      <!-- START -->
+      <div class="sigcorj-start" id="dropZoneMain" onclick="triggerUploadForCurrent()">
+        <div class="sigcorj-start-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2dbfff" stroke-width="2">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+        </div>
+        <div class="sigcorj-start-text">
+          <strong>Selecione um mês no menu e importe a planilha para começar</strong>
+          <span>Formatos aceitos: .xlsx, .xls, .csv · Arraste ou clique aqui</span>
+        </div>
+      </div>
+
+    </div><!-- /emptyState -->
+
+    <!-- SEM DADOS para o mês selecionado -->
+    <div id="noDataState" class="no-data-state">
+      <div class="no-data-icon">📭</div>
+      <h3 id="noDataTitle">Sem dados para este período</h3>
+      <p id="noDataSub">Importe a planilha referente a este mês para visualizar o dashboard.</p>
+      <button class="no-data-upload-btn" onclick="triggerUploadForCurrent()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Importar Planilha para <span id="noDataPeriod" style="margin-left:4px"></span>
+      </button>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="dashboard" style="display:none">
+      <div class="kpi-grid" id="kpiGrid"></div>
+      <div class="section-title">Distribuição de Horas e Pagamentos</div>
+      <div class="charts-row">
+        <div class="chart-card">
+          <div class="chart-card-title">Horas por Motorista <span class="chart-sub">50% vs 100%</span></div>
+          <div class="chart-wrap"><canvas id="chartHoras"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-title">Não Conformidades <span class="chart-sub">ranking</span></div>
+          <div class="chart-wrap"><canvas id="chartNC"></canvas></div>
+        </div>
+      </div>
+      <div class="section-title">Detalhamento por Motorista</div>
+      <div class="table-card">
+        <div class="table-header-bar">
+          <h3>Jornada de Motoristas</h3>
+          <div class="search-box">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7ea8c4" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input type="text" id="searchInput" placeholder="Buscar motorista..." oninput="filterTable()">
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead><tr>
+              <th>Motorista</th><th>H. 50%</th><th>H. 100%</th>
+              <th>Pago 50%</th><th>Pago 100%</th><th>Total Pago</th><th>Não Conformidades</th>
+            </tr></thead>
+            <tbody id="driverTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="section-title">Análise de Conformidade</div>
+      <div class="conformity-row">
+        <div class="conf-card">
+          <div class="conf-title">🔴 Ranking — Mais Não Conformidades</div>
+          <div id="ncRankList"></div>
+        </div>
+        <div class="conf-card">
+          <div class="conf-title">💰 Distribuição de Pagamentos</div>
+          <div class="chart-wrap"><canvas id="chartPag"></canvas></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+    <!-- ═══ NÃO CONFORMIDADES PAGE ═══ -->
+    <div id="ncPage" class="nc-page">
+      <div class="nc-detail-hero" id="ncHero">
+        <div>
+          <h2 id="ncHeroTitle">Não Conformidades</h2>
+          <p id="ncHeroSub">Selecione um período para visualizar as ocorrências</p>
+        </div>
+        <button class="upload-btn-top" style="background:rgba(255,71,87,0.15);border:1px solid rgba(255,71,87,0.3);color:#ff6b7a" onclick="triggerNCUpload()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Importar Planilha NC
+        </button>
+      </div>
+
+      <!-- NC no-data -->
+      <div id="ncNoData" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:45vh;text-align:center;gap:14px">
+        <div style="font-size:48px">⚠️</div>
+        <h3 style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700" id="ncNoDataTitle">Sem dados para este período</h3>
+        <p style="font-size:13px;color:var(--gray-3)" id="ncNoDataSub">Importe a planilha de não conformidades para visualizar.</p>
+        <div class="nc-upload-area" style="max-width:440px" onclick="triggerNCUpload()">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ff6b7a" stroke-width="1.5" style="margin:0 auto 10px;display:block"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <strong>Clique para importar a planilha de NC</strong>
+          <p>Colunas esperadas: Nome, Direção Contínua, Tempo Mín. Alimentação,<br>Descanso Interjornada, Excesso de Jornada</p>
+        </div>
+      </div>
+
+      <!-- NC dashboard (shown when data loaded) -->
+      <div id="ncDashboard" style="display:none">
+        <div class="kpi-grid" id="ncKpiGrid"></div>
+        <div class="section-title" style="color:var(--gray-2)">Ocorrências por Motorista</div>
+        <div class="charts-row">
+          <div class="chart-card">
+            <div class="chart-card-title">NCs por Motorista <span class="chart-sub">ranking</span></div>
+            <div class="chart-wrap"><canvas id="ncChartBar"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-card-title">Distribuição por Tipo <span class="chart-sub">categorias</span></div>
+            <div class="chart-wrap"><canvas id="ncChartDoughnut"></canvas></div>
+          </div>
+        </div>
+        <div class="section-title" style="color:var(--gray-2)">Detalhamento de Ocorrências</div>
+        <div class="table-card">
+          <div class="table-header-bar">
+            <h3>Registro de Não Conformidades</h3>
+            <div class="search-box">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7ea8c4" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              <input type="text" id="ncSearchInput" placeholder="Buscar motorista ou tipo..." oninput="filterNCTable()">
+            </div>
+          </div>
+          <div style="overflow-x:auto">
+            <table>
+              <thead><tr>
+                <th>Motorista</th>
+                <th style="text-align:center">Direção<br>Contínua</th>
+                <th style="text-align:center">Tempo Mín.<br>Alimentação</th>
+                <th style="text-align:center">Descanso<br>Interjornada</th>
+                <th style="text-align:center">Excesso<br>de Jornada</th>
+                <th style="text-align:center">Total<br>NCs</th>
+              </tr></thead>
+              <tbody id="ncTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ MOTORISTAS PAGE ═══ -->
+    <div id="motPage" class="mot-page">
+      <div class="nc-detail-hero" style="border-color:rgba(255,159,67,0.2);background:linear-gradient(135deg,var(--navy-mid),rgba(255,159,67,0.04))">
+        <div>
+          <h2 id="motHeroTitle" style="background:linear-gradient(90deg,var(--white),var(--orange));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Motoristas</h2>
+          <p id="motHeroSub" style="color:var(--gray-3)">Arquivos e registros do quadro de motoristas</p>
+        </div>
+        <button class="upload-btn-top" style="background:rgba(255,159,67,0.12);border:1px solid rgba(255,159,67,0.3);color:var(--orange)" onclick="triggerMotUpload()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Importar Arquivo
+        </button>
+      </div>
+
+      <!-- MOT no-data -->
+      <div id="motNoData" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:45vh;text-align:center;gap:14px">
+        <div style="font-size:48px">🚛</div>
+        <h3 style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700" id="motNoDataTitle">Arquivos do Quadro de Motoristas</h3>
+        <p style="font-size:13px;color:var(--gray-3);max-width:400px;line-height:1.65" id="motNoDataSub">Importe a planilha com os dados cadastrais e operacionais dos motoristas.</p>
+        <div class="nc-upload-area" style="max-width:440px;border-color:rgba(255,159,67,0.25);background:rgba(255,159,67,0.02)" onclick="triggerMotUpload()">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="1.5" style="margin:0 auto 10px;display:block"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <strong style="color:var(--orange)">Clique para importar arquivo de motoristas</strong>
+          <p>Formatos aceitos: .xlsx, .xls, .csv</p>
+        </div>
+      </div>
+
+      <!-- MOT table (shown when data loaded) -->
+      <div id="motDashboard" style="display:none">
+        <div class="kpi-grid" id="motKpiGrid"></div>
+        <div class="section-title" style="color:var(--gray-2)">Cadastro de Motoristas</div>
+        <div class="table-card">
+          <div class="table-header-bar">
+            <h3 id="motTableTitle">Motoristas</h3>
+            <div class="search-box">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7ea8c4" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              <input type="text" id="motSearchInput" placeholder="Buscar motorista..." oninput="filterMotTable()">
+            </div>
+          </div>
+          <div style="overflow-x:auto">
+            <table>
+              <thead><tr id="motTableHead"></tr></thead>
+              <tbody id="motTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SIGCORJ PAGE -->
+    <div id="sigcorjPage" class="sigcorj-page">
+
+      <!-- HERO -->
+      <div class="sigcorj-hero">
+        <div class="sigcorj-hero-tag">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          Sistema Integrado
+        </div>
+        <h2>Sistema Integrado de<br>Governança e Controle de Jornada</h2>
+        <p>O SIGCORJ é uma metodologia de governança operacional desenvolvida para transformar informações de jornada em inteligência estratégica para tomada de decisão. Através da integração entre indicadores operacionais, auditoria de jornada, acompanhamento preventivo e análise de produtividade, o sistema permite identificar desvios operacionais, reduzir custos com horas extras, aumentar a conformidade trabalhista e fortalecer a eficiência da operação de transporte.</p>
+      </div>
+
+      <!-- HOW IT WORKS -->
+      <div class="section-title">Como Funciona</div>
+      <div class="sigcorj-grid2" style="margin-bottom:28px">
+        <div class="info-card">
+          <div class="info-card-accent" style="background:linear-gradient(180deg,var(--blue),var(--blue-bright))"></div>
+          <h4>Coleta e Integração de Dados</h4>
+          <p>O sistema utiliza informações registradas pelos motoristas através das tecnologias embarcadas e sistemas de rastreamento, consolidando os dados em uma estrutura de análise estruturada. Cada evento operacional é transformado em informação, permitindo que a gestão tenha maior previsibilidade e controle sobre a operação.</p>
+        </div>
+        <div class="info-card">
+          <div class="info-card-accent" style="background:linear-gradient(180deg,var(--green),#00b877)"></div>
+          <h4>Estrutura de Análise</h4>
+          <div class="pillar-list" style="margin-top:6px">
+            <div class="pillar-item"><span class="pillar-dot"></span>Controle de jornada de trabalho</div>
+            <div class="pillar-item"><span class="pillar-dot"></span>Monitoramento de horas extras</div>
+            <div class="pillar-item"><span class="pillar-dot"></span>Auditoria de não conformidades (N/C)</div>
+            <div class="pillar-item"><span class="pillar-dot"></span>Controle de pausas e repousos</div>
+            <div class="pillar-item"><span class="pillar-dot"></span>Acompanhamento de produtividade operacional</div>
+            <div class="pillar-item"><span class="pillar-dot"></span>Governança de programações e escalas</div>
+            <div class="pillar-item"><span class="pillar-dot"></span>Indicadores gerenciais e financeiros</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- OBJECTIVES -->
+      <div class="section-title">Principais Objetivos</div>
+      <div class="sigcorj-grid3" style="margin-bottom:28px">
+        <div class="obj-card c1">
+          <span class="obj-icon">📉</span>
+          <h4>Redução de Custos Operacionais</h4>
+          <p>Monitoramento contínuo das jornadas para redução de horas extras desnecessárias e melhor aproveitamento dos recursos operacionais.</p>
+        </div>
+        <div class="obj-card c2">
+          <span class="obj-icon">✅</span>
+          <h4>Governança e Conformidade</h4>
+          <p>Garantia de aderência às normas trabalhistas, redução de desvios operacionais e fortalecimento dos controles internos.</p>
+        </div>
+        <div class="obj-card c3">
+          <span class="obj-icon">⚡</span>
+          <h4>Eficiência Operacional</h4>
+          <p>Identificação de oportunidades de melhoria através da análise de dados, promovendo jornadas mais produtivas e alinhadas à operação.</p>
+        </div>
+        <div class="obj-card c4">
+          <span class="obj-icon">🎯</span>
+          <h4>Decisão Baseada em Dados</h4>
+          <p>Transformação de informações operacionais em indicadores estratégicos para suporte à liderança e à diretoria.</p>
+        </div>
+      </div>
+
+      <!-- BENEFITS -->
+      <div class="section-title">Benefícios Gerados</div>
+      <div class="benefits-card">
+        <p style="font-size:13px;color:var(--gray-3);line-height:1.6">Mais do que controlar jornadas, o SIGCORJ atua como uma <strong style="color:var(--white)">ferramenta de gestão</strong>, conectando dados operacionais às necessidades da empresa e permitindo uma visão clara sobre produtividade, comportamento operacional, riscos trabalhistas e oportunidades de melhoria contínua.</p>
+        <div class="benefits-grid">
+          <div class="benefit-item"><span class="benefit-check">✔</span>Controle preventivo das jornadas</div>
+          <div class="benefit-item"><span class="benefit-check">✔</span>Redução de horas extras e custos operacionais</div>
+          <div class="benefit-item"><span class="benefit-check">✔</span>Monitoramento de não conformidades</div>
+          <div class="benefit-item"><span class="benefit-check">✔</span>Gestão de pausas e tempos improdutivos</div>
+          <div class="benefit-item"><span class="benefit-check">✔</span>Maior aderência às programações operacionais</div>
+          <div class="benefit-item"><span class="benefit-check">✔</span>Integração entre RH, Operação, Frota e Logística</div>
+          <div class="benefit-item"><span class="benefit-check">✔</span>Redução de riscos trabalhistas</div>
+          <div class="benefit-item"><span class="benefit-check">✔</span>Geração de indicadores estratégicos</div>
+          <div class="benefit-item"><span class="benefit-check">✔</span>Maior previsibilidade operacional</div>
+          <div class="benefit-item"><span class="benefit-check">✔</span>Cultura de gestão orientada por dados</div>
+        </div>
+      </div>
+
+      <!-- VISION -->
+      <div class="vision-card">
+        <div class="vision-title">Nossa Visão</div>
+        <div class="vision-headline" style="margin-bottom:6px">De dado a resultado.</div>
+        <p style="font-size:13px;color:var(--gray-3);margin-bottom:0">A cadeia de valor do SIGCORJ em quatro transformações.</p>
+        <div class="vision-steps">
+          <div class="vision-step">
+            <span class="vision-step-word">Jornada</span>
+            <span class="vision-step-sub">ponto de partida</span>
+          </div>
+          <span class="vision-arrow">→</span>
+          <div class="vision-step">
+            <span class="vision-step-word">Dado</span>
+            <span class="vision-step-sub">registro estruturado</span>
+          </div>
+          <span class="vision-arrow">→</span>
+          <div class="vision-step">
+            <span class="vision-step-word">Informação</span>
+            <span class="vision-step-sub">análise e contexto</span>
+          </div>
+          <span class="vision-arrow">→</span>
+          <div class="vision-step">
+            <span class="vision-step-word">Decisão</span>
+            <span class="vision-step-sub">inteligência estratégica</span>
+          </div>
+          <span class="vision-arrow">→</span>
+          <div class="vision-step">
+            <span class="vision-step-word">Resultado</span>
+            <span class="vision-step-sub">impacto real</span>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /sigcorjPage -->
+
+</main>
+
+<script>
+// ── CONFIG ──
+const SUPABASE_URL = 'https://redbfzxpdbmojpocbtis.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJlZGJmenhwZGJtb2pwb2NidGlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NzIzOTUsImV4cCI6MjA5NjI0ODM5NX0.MBH4vNSQFHkwiZO6Si6Y2mYck4hCcVavYEUOEo90g9I';
+
+const YEARS = {
+  '2025': ['Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'],
+  '2026': ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'],
+  '2027': ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'],
+  '2028': ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'],
+};
+
+// ── STATE ──
+let currentYear = null;
+let currentMonth = null;
+let allData = {}; // key = 'YEAR-MONTH' -> rows[]
+let pendingUploadKey = null;
+let chartHoras = null, chartNC = null, chartPag = null;
+let allRows = [];
+
+// ── SUPABASE API ──
+async function sbFetch(path, options = {}) {
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
+    ...options,
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': options.prefer || '',
+      ...(options.headers || {})
+    }
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error('Supabase error ' + res.status + ': ' + err);
+  }
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+async function dbSaveRows(year, month, rows) {
+  // Delete existing rows for this period first
+  await sbFetch('jornada?ano=eq.' + year + '&mes=eq.' + encodeURIComponent(month), {
+    method: 'DELETE',
+    prefer: 'return=minimal'
+  });
+  // Insert new rows in batches of 50
+  const payload = rows.map(r => ({
+    ano: year, mes: month,
+    nome: r.nome, h50: r.h50, h100: r.h100,
+    p50: r.p50, p100: r.p100, nc: r.nc
+  }));
+  for (let i = 0; i < payload.length; i += 50) {
+    await sbFetch('jornada', {
+      method: 'POST',
+      prefer: 'return=minimal',
+      body: JSON.stringify(payload.slice(i, i + 50))
+    });
+  }
+}
+
+async function dbLoadRows(year, month) {
+  const data = await sbFetch(
+    'jornada?ano=eq.' + year + '&mes=eq.' + encodeURIComponent(month) +
+    '&select=nome,h50,h100,p50,p100,nc&order=nome.asc'
+  );
+  return data || [];
+}
+
+async function dbLoadAllPeriods() {
+  // Load distinct ano+mes combinations to mark sidebar dots
+  const data = await sbFetch(
+    'jornada?select=ano,mes&order=ano.asc,mes.asc'
+  );
+  if (!data) return [];
+  // Deduplicate
+  const seen = new Set();
+  return data.filter(r => {
+    const k = r.ano + '-' + r.mes;
+    if (seen.has(k)) return false;
+    seen.add(k); return true;
+  });
+}
+
+// ── SUPABASE NC FUNCTIONS ──
+async function dbSaveNC(year, month, drivers) {
+  if (!drivers || drivers.length === 0) throw new Error('Nenhum dado para salvar');
+
+  // Delete existing rows for this period
+  const delRes = await sbFetch('jornada_nc?ano=eq.' + year + '&mes=eq.' + encodeURIComponent(month), {
+    method: 'DELETE',
+    prefer: 'return=minimal'
+  });
+
+  // Build payload
+  const payload = drivers.map(d => ({
+    ano: String(year),
+    mes: String(month),
+    nome: String(d.nome),
+    direcao_continua:      Number(d.direcao)    || 0,
+    tempo_alimentacao:     Number(d.alimenta)   || 0,
+    descanso_interjornada: Number(d.interjourn) || 0,
+    excesso_jornada:       Number(d.excesso)    || 0,
+    total:                 Number(d.total)      || 0
+  }));
+
+  console.log('Saving NC payload sample:', payload[0]);
+
+  // Insert in batches of 50
+  for (let i = 0; i < payload.length; i += 50) {
+    const batch = payload.slice(i, i + 50);
+    await sbFetch('jornada_nc', {
+      method: 'POST',
+      prefer: 'return=minimal',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(batch)
+    });
+  }
+  console.log('dbSaveNC complete:', drivers.length, 'rows saved for', year, month);
+}
+
+async function dbLoadNC(year, month) {
+  const data = await sbFetch(
+    'jornada_nc?ano=eq.' + year + '&mes=eq.' + encodeURIComponent(month) +
+    '&select=nome,direcao_continua,tempo_alimentacao,descanso_interjornada,excesso_jornada,total&order=nome.asc'
+  );
+  if (!data || !data.length) return [];
+  // Map back to internal format
+  return data.map(r => ({
+    nome: r.nome,
+    direcao:    r.direcao_continua      || 0,
+    alimenta:   r.tempo_alimentacao     || 0,
+    interjourn: r.descanso_interjornada || 0,
+    excesso:    r.excesso_jornada       || 0,
+    total:      r.total                 || 0
+  }));
+}
+
+async function dbLoadAllNCPeriods() {
+  const data = await sbFetch('jornada_nc?select=ano,mes&order=ano.asc,mes.asc');
+  if (!data) return [];
+  const seen = new Set();
+  return data.filter(r => {
+    const k = r.ano + '-' + r.mes;
+    if (seen.has(k)) return false;
+    seen.add(k); return true;
+  });
+}
+
+// ── BUILD SIDEBAR MONTHS ──
+function buildSidebar() {
+  for (const [year, months] of Object.entries(YEARS)) {
+    const container = document.getElementById('months-' + year);
+    container.innerHTML = months.map(month => {
+      const key = year + '-' + month;
+      return `
+      <div class="nav-month-item no-data" id="item-${key}">
+        <span class="month-status"></span>
+        <button class="month-btn" onclick="selectPeriod('${year}','${month}')">${month}</button>
+        <button class="month-upload-btn" onclick="triggerUploadForKey('${key}')" title="Importar planilha de ${month} ${year}">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2dbfff" stroke-width="2.5">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+        </button>
+      </div>`;
+    }).join('');
+  }
+}
+
+// ── NAVIGATION ──
+function toggleYear(year) {
+  const el = document.getElementById('year-' + year);
+  const header = el.querySelector('.nav-year-header');
+  const isOpen = el.classList.contains('open');
+  document.querySelectorAll('.nav-year').forEach(y => y.classList.remove('open'));
+  document.querySelectorAll('.nav-year-header').forEach(h => h.classList.remove('active'));
+  if (!isOpen) { el.classList.add('open'); header.classList.add('active'); }
+}
+
+function selectPeriod(year, month) {
+  // Close all other panels
+  document.getElementById('ncPage').classList.remove('show');
+  document.getElementById('motPage').classList.remove('show');
+  if (sigcorjOpen) {
+    sigcorjOpen = false;
+    document.getElementById('sigcorjPage').classList.remove('show');
+    document.getElementById('sigcorjSideBtn').classList.remove('active');
+  }
+  activeSection = 'jornada';
+  currentYear = year;
+  currentMonth = month;
+  const key = year + '-' + month;
+
+  // Active item highlight
+  document.querySelectorAll('.nav-month-item').forEach(i => i.classList.remove('active'));
+  const item = document.getElementById('item-' + key);
+  if (item) item.classList.add('active');
+
+  // Open year
+  document.querySelectorAll('.nav-year').forEach(y => y.classList.remove('open'));
+  document.querySelectorAll('.nav-year-header').forEach(h => h.classList.remove('active'));
+  const yearEl = document.getElementById('year-' + year);
+  if (yearEl) {
+    yearEl.classList.add('open');
+    yearEl.querySelector('.nav-year-header').classList.add('active');
+  }
+
+  // Topbar
+  document.getElementById('periodBadge').textContent = month.substring(0,3) + ' ' + year;
+  document.getElementById('topbarTitle').textContent = 'Jornada — ' + month + ' ' + year;
+  document.getElementById('topbarSub').textContent = 'Indicadores de horas extras e conformidade';
+
+  loadPeriodData(key);
+}
+
+async function loadPeriodData(key) {
+  // Check memory cache first
+  if (allData[key] && allData[key].length > 0) {
+    showDashboard(allData[key]);
+    return;
+  }
+  // Try loading from Supabase
+  const [year, month] = key.split(/-(.+)/);
+  showLoadingState(month, year);
+  try {
+    const rows = await dbLoadRows(year, month);
+    if (rows.length > 0) {
+      allData[key] = rows;
+      markMonthHasData(key);
+      showDashboard(rows);
+    } else {
+      showNoData();
+    }
+  } catch(e) {
+    console.error('Erro ao carregar do Supabase:', e);
+    showNoData();
+  }
+}
+
+// ── VIEWS ──
+function showDashboard(rows) {
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('noDataState').classList.remove('show');
+  document.getElementById('dashboard').style.display = 'block';
+  renderDashboard(rows);
+}
+
+function showNoData() {
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'none';
+  const s = document.getElementById('noDataState');
+  s.classList.add('show');
+  const label = (currentMonth || '') + ' ' + (currentYear || '');
+  document.getElementById('noDataTitle').textContent = 'Sem dados para ' + label;
+  document.getElementById('noDataSub').textContent = 'Importe a planilha referente a ' + label + ' para visualizar os indicadores.';
+  document.getElementById('noDataPeriod').textContent = label;
+}
+
+function showEmpty() {
+  document.getElementById('noDataState').classList.remove('show');
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('emptyState').style.display = 'flex';
+}
+
+function showLoadingState(month, year) {
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'none';
+  const s = document.getElementById('noDataState');
+  s.classList.add('show');
+  document.getElementById('noDataTitle').textContent = '⏳ Carregando ' + month + ' ' + year + '...';
+  document.getElementById('noDataSub').textContent = 'Buscando dados na nuvem, aguarde um instante.';
+  document.getElementById('noDataPeriod').textContent = '';
+}
+
+// ── FILE UPLOAD ──
+// Upload triggered from topbar or no-data button = for current period
+function triggerUploadForCurrent() {
+  if (!currentYear || !currentMonth) {
+    showAlert('Selecione um mês no menu lateral antes de importar.');
+    return;
+  }
+  pendingUploadKey = currentYear + '-' + currentMonth;
+  document.getElementById('fileInput').click();
+}
+
+// Upload triggered from month's ☁ button = for that specific period
+function triggerUploadForKey(key) {
+  pendingUploadKey = key;
+  document.getElementById('fileInput').click();
+}
+
+document.getElementById('fileInput').addEventListener('change', function(e) {
+  if (e.target.files[0]) handleFile(e.target.files[0]);
+  this.value = '';
+});
+
+// Drag & drop on main empty zone
+const dropMain = document.getElementById('dropZoneMain');
+if (dropMain) {
+  dropMain.addEventListener('dragover', e => { e.preventDefault(); dropMain.classList.add('drag-over'); });
+  dropMain.addEventListener('dragleave', () => dropMain.classList.remove('drag-over'));
+  dropMain.addEventListener('drop', e => {
+    e.preventDefault(); dropMain.classList.remove('drag-over');
+    if (!currentYear) { showAlert('Selecione um mês no menu antes de arrastar a planilha.'); return; }
+    pendingUploadKey = currentYear + '-' + currentMonth;
+    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+}
+
+function handleFile(file) {
+  if (!file) return;
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (!['xlsx','xls','csv'].includes(ext)) { showAlert('Formato inválido. Use .xlsx, .xls ou .csv'); return; }
+
+  // Route to NC upload
+  if (pendingNCKey) {
+    const ncKey = pendingNCKey; const ncy = pendingNCYear; const ncm = pendingNCMonth;
+    pendingNCKey = null;
+    pendingNCYear = null; pendingNCMonth = null;
+    const reader = new FileReader();
+    reader.onerror = () => showAlert('Erro ao ler o arquivo.');
+    reader.onload = async function(e) {
+      try {
+        // Parse file
+        let wb;
+        if (ext==='csv'){
+          const text = new TextDecoder('utf-8').decode(new Uint8Array(e.target.result));
+          wb = XLSX.read(text, {type:'string'});
+        } else {
+          wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+        }
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(ws, {defval:''});
+
+        if (!json.length){ showAlert('Planilha vazia ou sem dados.'); return; }
+
+        showAlert('⏳ Processando ' + json.length + ' linhas...', true);
+
+        // Aggregate per driver
+        const colMap = detectNCColumns(json);
+        const byMot = {};
+        json.forEach(r => {
+          const name = String(r[colMap.nome] || '').trim();
+          if (!name) return;
+          if (!byMot[name]) byMot[name] = { nome:name, direcao:0, alimenta:0, interjourn:0, excesso:0 };
+          byMot[name].direcao    += getNCVal(r, colMap.direcao);
+          byMot[name].alimenta   += getNCVal(r, colMap.alimenta);
+          byMot[name].interjourn += getNCVal(r, colMap.interjourn);
+          byMot[name].excesso    += getNCVal(r, colMap.excesso);
+        });
+        const drivers = Object.values(byMot).map(d => ({
+          ...d,
+          total: d.direcao + d.alimenta + d.interjourn + d.excesso
+        }));
+
+        if (!drivers.length){ showAlert('Nenhum motorista encontrado. Verifique se a coluna Nome está preenchida.'); return; }
+
+        // Save raw json to memory cache
+        ncData[ncKey] = json;
+
+        // Mark sidebar dot
+        const ncItem = document.getElementById('item-nc-' + ncKey);
+        if (ncItem){ ncItem.classList.remove('no-data'); ncItem.classList.add('has-data'); }
+
+        // Save to Supabase
+        showAlert('⏳ Salvando ' + drivers.length + ' motoristas na nuvem...', true);
+        try {
+          await dbSaveNC(ncy, ncm, drivers);
+          showAlert('✅ NCs de ' + ncm + ' ' + ncy + ' salvas! ' + drivers.length + ' motoristas.', true);
+        } catch(saveErr) {
+          showAlert('⚠️ Erro ao salvar na nuvem: ' + saveErr.message + ' — dados carregados localmente.', false);
+          console.error('dbSaveNC error:', saveErr);
+        }
+
+        // Render if current period is active
+        if (activeSection === 'nc' && ncy === currentNCYear && ncm === currentNCMonth) {
+          renderNCDashboard(json);
+        }
+
+      } catch(err) {
+        showAlert('Erro ao processar arquivo: ' + err.message);
+        console.error('NC upload error:', err);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    return;
+  }
+
+  // Route to Motoristas upload
+  if (pendingMotYear) {
+    const my = pendingMotYear; pendingMotYear = null;
+    const reader = new FileReader();
+    reader.onerror = () => showAlert('Erro ao ler o arquivo.');
+    reader.onload = function(e) {
+      try {
+        let wb; if (ext==='csv'){const text=new TextDecoder('utf-8').decode(new Uint8Array(e.target.result));wb=XLSX.read(text,{type:'string'});}else{wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});}
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(ws, {defval:''});
+        if (!json.length){showAlert('Planilha vazia.');return;}
+        motData[my] = json;
+        const motItem = document.getElementById('mot-item-' + my);
+        if (motItem) {
+          motItem.classList.add('has-data');
+          motItem.querySelector('.month-status').style.background = 'var(--orange)';
+          motItem.querySelector('.month-status').style.borderColor = 'var(--orange)';
+          motItem.querySelector('.month-status').style.boxShadow = '0 0 6px rgba(255,159,67,0.5)';
+        }
+        if (activeSection === 'motoristas' && my === currentMotYear) {
+          showAlert('✅ Arquivo de Motoristas ' + my + ' carregado! ' + json.length + ' registros.', true);
+          renderMotDashboard(json, my);
+        } else {
+          showAlert('✅ Arquivo de Motoristas ' + my + ' salvo! Clique no menu para visualizar.', true);
+        }
+      } catch(err){showAlert('Erro: '+err.message);}
+    };
+    reader.readAsArrayBuffer(file);
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onerror = () => showAlert('Erro ao ler o arquivo.');
+  reader.onload = async function(e) {
+    try {
+      let wb;
+      if (ext === 'csv') {
+        const text = new TextDecoder('utf-8').decode(new Uint8Array(e.target.result));
+        wb = XLSX.read(text, { type: 'string' });
+      } else {
+        wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+      }
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      if (!json.length) { showAlert('Planilha vazia ou sem dados.'); return; }
+      const rows = parseRows(json);
+      if (!rows.length) { showAlert('Dados inválidos. Colunas esperadas: Nome, Horas 50%, Horas 100%, Pago 50%, Pago 100%, Não Conformidades'); return; }
+
+      const key = pendingUploadKey;
+      const [ky, km] = key.split(/-(.+)/);
+      allData[key] = rows;
+      markMonthHasData(key);
+
+      // Save to Supabase
+      showAlert('⏳ Salvando ' + rows.length + ' registros na nuvem...', true);
+      try {
+        await dbSaveRows(ky, km, rows);
+        if (key === currentYear + '-' + currentMonth) {
+          showAlert('✅ ' + km + ' ' + ky + ' salvo na nuvem! ' + rows.length + ' motoristas.', true);
+          showDashboard(rows);
+        } else {
+          showAlert('✅ Planilha de ' + km + ' ' + ky + ' salva na nuvem! Clique no mês para visualizar.', true);
+        }
+      } catch(e) {
+        showAlert('⚠️ Dados carregados localmente mas erro ao salvar na nuvem: ' + e.message);
+        if (key === currentYear + '-' + currentMonth) showDashboard(rows);
+      }
+    } catch(err) {
+      showAlert('Erro ao processar: ' + err.message);
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function markMonthHasData(key) {
+  const item = document.getElementById('item-' + key);
+  if (item) {
+    item.classList.remove('no-data');
+    item.classList.add('has-data');
+  }
+}
+
+// ── PARSE ──
+function parseRows(json) {
+  const colMap = {};
+  const firstRow = json[0];
+  for (const key of Object.keys(firstRow)) {
+    const k = key.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    if (!colMap.nome && /nome|motorista|driver/.test(k)) colMap.nome = key;
+    else if (!colMap.h50 && /50/.test(k) && /hora|h\./.test(k)) colMap.h50 = key;
+    else if (!colMap.h100 && /100/.test(k) && /hora|h\./.test(k)) colMap.h100 = key;
+    else if (!colMap.p50 && /50/.test(k) && /pago|valor|r\$|pagamento/.test(k)) colMap.p50 = key;
+    else if (!colMap.p100 && /100/.test(k) && /pago|valor|r\$|pagamento/.test(k)) colMap.p100 = key;
+    else if (!colMap.nc && /conform|nc|infra|ocorr/.test(k)) colMap.nc = key;
+  }
+  // fallback posicional
+  const keys = Object.keys(firstRow);
+  if (!colMap.nome) colMap.nome = keys[0];
+  if (!colMap.h50)  colMap.h50  = keys[1];
+  if (!colMap.h100) colMap.h100 = keys[2];
+  if (!colMap.p50)  colMap.p50  = keys[3];
+  if (!colMap.p100) colMap.p100 = keys[4];
+  if (!colMap.nc)   colMap.nc   = keys[5];
+
+  return json.map(row => ({
+    nome: String(row[colMap.nome] || '').trim(),
+    h50:  parseFloat(row[colMap.h50])  || 0,
+    h100: parseFloat(row[colMap.h100]) || 0,
+    p50:  parseFloat(row[colMap.p50])  || 0,
+    p100: parseFloat(row[colMap.p100]) || 0,
+    nc:   parseInt(row[colMap.nc])     || 0,
+  })).filter(r => r.nome);
+}
+
+// ── RENDER DASHBOARD ──
+function renderDashboard(rows) {
+  allRows = rows;
+  const totH50  = rows.reduce((s,r) => s+r.h50, 0);
+  const totH100 = rows.reduce((s,r) => s+r.h100, 0);
+  const totP50  = rows.reduce((s,r) => s+r.p50, 0);
+  const totP100 = rows.reduce((s,r) => s+r.p100, 0);
+  const totNC   = rows.reduce((s,r) => s+r.nc, 0);
+  const totPago = totP50 + totP100;
+
+  document.getElementById('kpiGrid').innerHTML = `
+    <div class="kpi-card blue">
+      <div class="kpi-label">Total Motoristas</div>
+      <div class="kpi-value">${rows.length}</div>
+      <div class="kpi-sub">no período</div>
+      <div class="kpi-icon">🚛</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Total Pago</div>
+      <div class="kpi-value">${fmt(totPago)}</div>
+      <div class="kpi-sub">${fmt(totP50)} (50%) + ${fmt(totP100)} (100%)</div>
+      <div class="kpi-icon">💰</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-label">Horas Extras</div>
+      <div class="kpi-value">${fmtH(totH50+totH100)}</div>
+      <div class="kpi-sub">${fmtH(totH50)} a 50% · ${fmtH(totH100)} a 100%</div>
+      <div class="kpi-icon">⏱️</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-label">Não Conformidades</div>
+      <div class="kpi-value">${totNC}</div>
+      <div class="kpi-sub">ocorrências no período</div>
+      <div class="kpi-icon">⚠️</div>
+    </div>`;
+
+  renderChartHoras(rows);
+  renderChartNC(rows);
+  renderChartPag(totP50, totP100);
+  renderTable(rows);
+  renderNCRank(rows);
+}
+
+// ── CHARTS ──
+function renderChartHoras(rows) {
+  const ctx = document.getElementById('chartHoras').getContext('2d');
+  if (chartHoras) chartHoras.destroy();
+  chartHoras = new Chart(ctx, {
+    type:'bar',
+    data:{ labels: rows.map(r=>r.nome.split(' ')[0]),
+      datasets:[
+        {label:'Horas 50%', data:rows.map(r=>r.h50), backgroundColor:'rgba(26,159,224,0.72)', borderRadius:4},
+        {label:'Horas 100%',data:rows.map(r=>r.h100),backgroundColor:'rgba(0,214,143,0.72)', borderRadius:4},
+      ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#c8dcea',font:{family:'Barlow',size:11},boxWidth:11}}},
+      scales:{x:{ticks:{color:'#7ea8c4',font:{family:'Barlow',size:10}},grid:{color:'rgba(26,159,224,0.06)'}},
+              y:{ticks:{color:'#7ea8c4',font:{family:'Barlow',size:10}},grid:{color:'rgba(26,159,224,0.06)'}}}}
+  });
+}
+
+function renderChartNC(rows) {
+  const ctx = document.getElementById('chartNC').getContext('2d');
+  if (chartNC) chartNC.destroy();
+  const sorted = [...rows].sort((a,b)=>b.nc-a.nc).slice(0,8);
+  chartNC = new Chart(ctx, {
+    type:'bar', indexAxis:'y',
+    data:{ labels:sorted.map(r=>r.nome.split(' ')[0]),
+      datasets:[{label:'NC', data:sorted.map(r=>r.nc), borderRadius:4,
+        backgroundColor:sorted.map(r=> r.nc===0?'rgba(0,214,143,0.6)':r.nc<=2?'rgba(255,159,67,0.7)':'rgba(255,71,87,0.7)')}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:'#7ea8c4',font:{family:'Barlow',size:10}},grid:{color:'rgba(26,159,224,0.06)'}},
+              y:{ticks:{color:'#c8dcea',font:{family:'Barlow',size:10}},grid:{color:'rgba(26,159,224,0.04)'}}}}
+  });
+}
+
+function renderChartPag(p50, p100) {
+  const ctx = document.getElementById('chartPag').getContext('2d');
+  if (chartPag) chartPag.destroy();
+  chartPag = new Chart(ctx, {
+    type:'doughnut',
+    data:{ labels:['Pago 50%','Pago 100%'],
+      datasets:[{data:[p50,p100], backgroundColor:['rgba(26,159,224,0.8)','rgba(0,214,143,0.8)'],
+        borderWidth:0, hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'65%',
+      plugins:{legend:{position:'bottom',labels:{color:'#c8dcea',font:{family:'Barlow',size:11},boxWidth:11,padding:14}},
+        tooltip:{callbacks:{label:c=>' R$ '+c.raw.toLocaleString('pt-BR',{minimumFractionDigits:2})}}}}
+  });
+}
+
+// ── TABLE ──
+function renderTable(rows) {
+  const maxNC = Math.max(...rows.map(r=>r.nc), 1);
+  document.getElementById('driverTableBody').innerHTML = rows.map(r => {
+    const initials = r.nome.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    const col = r.nc===0?'#00d68f':r.nc<=2?'#ff9f43':'#ff4757';
+    const pct = Math.round((r.nc/maxNC)*100);
+    return `<tr>
+      <td class="driver-name"><div class="driver-avatar">${initials}</div>${r.nome}</td>
+      <td><span class="pill pill-blue">${fmtH(r.h50)}</span></td>
+      <td><span class="pill pill-green">${fmtH(r.h100)}</span></td>
+      <td class="num">${fmt(r.p50)}</td>
+      <td class="num">${fmt(r.p100)}</td>
+      <td class="num" style="color:var(--blue-bright)">${fmt(r.p50+r.p100)}</td>
+      <td><div class="nc-wrap"><span class="num" style="color:${col};min-width:22px">${r.nc}</span>
+        <div class="nc-track"><div class="nc-fill" style="width:${pct}%;background:${col}"></div></div></div></td>
+    </tr>`;
+  }).join('');
+}
+
+function filterTable() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  renderTable(allRows.filter(r => r.nome.toLowerCase().includes(q)));
+}
+
+// ── NC RANK ──
+function renderNCRank(rows) {
+  const sorted = [...rows].sort((a,b)=>b.nc-a.nc).slice(0,8);
+  const maxNC = Math.max(...sorted.map(r=>r.nc), 1);
+  document.getElementById('ncRankList').innerHTML = sorted.map((r,i) => {
+    const col = r.nc===0?'#00d68f':r.nc<=2?'#ff9f43':'#ff4757';
+    const pct = Math.round((r.nc/maxNC)*100);
+    return `<div class="nc-rank-item">
+      <div class="nc-rank-name">${i+1}. ${r.nome}</div>
+      <div class="nc-rank-right">
+        <div class="nc-track" style="max-width:80px"><div class="nc-fill" style="width:${pct}%;background:${col}"></div></div>
+        <span class="pill" style="background:${col}18;color:${col}">${r.nc} NC</span>
+      </div></div>`;
+  }).join('');
+}
+
+// ── HELPERS ──
+function fmt(v) { return 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtH(h) { const hr=Math.floor(h),mn=Math.round((h-hr)*60); return hr+'h'+(mn?mn+'m':''); }
+
+let alertTimer;
+function showAlert(msg, success=false) {
+  const el = document.getElementById('alertBanner');
+  document.getElementById('alertMsg').textContent = msg;
+  el.className = 'alert-banner show' + (success?' alert-success':'');
+  clearTimeout(alertTimer);
+  alertTimer = setTimeout(() => el.classList.remove('show'), 5000);
+}
+
+
+
+// ── NC & MOTORISTAS STATE ──
+const NC_YEARS = {
+  '2025': ['Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'],
+  '2026': ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'],
+  '2027': ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'],
+  '2028': ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'],
+};
+
+let currentNCYear = null, currentNCMonth = null;
+let currentMotYear = null;
+let ncData = {};       // 'YEAR-MONTH' -> rows[]
+let motData = {};      // 'YEAR' -> rows[]
+let ncAllRows = [], motAllRows = [];
+let ncChartBar = null, ncChartDoughnut = null;
+let activeSection = 'jornada'; // 'jornada' | 'nc' | 'motoristas' | 'sigcorj'
+
+function buildNCsidebar() {
+  for (const [year, months] of Object.entries(NC_YEARS)) {
+    const container = document.getElementById('nc-months-' + year);
+    if (!container) continue;
+    container.innerHTML = months.map(month => {
+      const key = 'nc-' + year + '-' + month;
+      return `
+      <div class="nav-month-item no-data nav-year-nc" id="item-${key}">
+        <span class="month-status"></span>
+        <button class="month-btn" onclick="selectNCPeriod('${year}','${month}')">${month}</button>
+        <button class="month-upload-btn" onclick="triggerNCUploadForKey('${key}','${year}','${month}')" title="Importar NC de ${month} ${year}" style="border-color:rgba(255,71,87,0.2);background:rgba(255,71,87,0.05)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ff6b7a" stroke-width="2.5">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+        </button>
+      </div>`;
+    }).join('');
+  }
+}
+
+function toggleNCYear(year) {
+  const el = document.getElementById('nc-year-' + year);
+  const header = el.querySelector('.nav-year-header');
+  const isOpen = el.classList.contains('open');
+  document.querySelectorAll('.nav-year').forEach(y => y.classList.remove('open'));
+  document.querySelectorAll('.nav-year-header').forEach(h => h.classList.remove('active'));
+  if (!isOpen) { el.classList.add('open'); header.classList.add('active'); }
+}
+
+function toggleMotYear() {
+  const el = document.getElementById('mot-year-arquivos');
+  const header = el.querySelector('.nav-year-header');
+  const isOpen = el.classList.contains('open');
+  document.querySelectorAll('.nav-year').forEach(y => y.classList.remove('open'));
+  document.querySelectorAll('.nav-year-header').forEach(h => h.classList.remove('active'));
+  if (!isOpen) { el.classList.add('open'); header.classList.add('active'); }
+}
+
+function closeAllPanels() {
+  document.getElementById('ncPage').classList.remove('show');
+  document.getElementById('motPage').classList.remove('show');
+  document.getElementById('sigcorjPage').classList.remove('show');
+  document.getElementById('sigcorjSideBtn').classList.remove('active');
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('noDataState').classList.remove('show');
+  document.getElementById('dashboard').style.display = 'none';
+  document.querySelectorAll('.nav-month-item').forEach(i => i.classList.remove('active'));
+  sigcorjOpen = false;
+}
+
+// ── SELECT NC PERIOD ──
+function selectNCPeriod(year, month) {
+  closeAllPanels();
+  activeSection = 'nc';
+  currentNCYear = year; currentNCMonth = month;
+  const key = 'nc-' + year + '-' + month;
+  const item = document.getElementById('item-' + key);
+  if (item) item.classList.add('active');
+  document.getElementById('ncPage').classList.add('show');
+  document.getElementById('topbarTitle').textContent = 'Não Conformidades — ' + month + ' ' + year;
+  document.getElementById('topbarSub').textContent = 'Auditoria de ocorrências e desvios operacionais';
+  document.getElementById('periodBadge').textContent = 'NC ' + month.substring(0,3) + ' ' + year;
+  document.getElementById('ncHeroTitle').textContent = 'NCs — ' + month + ' ' + year;
+  document.getElementById('ncHeroSub').textContent = 'Não conformidades registradas no período';
+  // Open year
+  document.querySelectorAll('.nav-year').forEach(y => y.classList.remove('open'));
+  document.querySelectorAll('.nav-year-header').forEach(h => h.classList.remove('active'));
+  const yearEl = document.getElementById('nc-year-' + year);
+  if (yearEl) { yearEl.classList.add('open'); yearEl.querySelector('.nav-year-header').classList.add('active'); }
+  loadNCData(year, month);
+}
+
+async function loadNCData(year, month) {
+  const key = year + '-' + month;
+  // Check memory cache (raw rows)
+  if (ncData[key] && ncData[key].length > 0) {
+    renderNCDashboard(ncData[key]);
+    return;
+  }
+  // Try loading aggregated drivers from Supabase
+  document.getElementById('ncNoData').style.display = 'flex';
+  document.getElementById('ncDashboard').style.display = 'none';
+  document.getElementById('ncNoDataTitle').textContent = '⏳ Carregando NCs de ' + month + ' ' + year + '...';
+  document.getElementById('ncNoDataSub').textContent = 'Buscando dados na nuvem, aguarde.';
+  try {
+    const drivers = await dbLoadNC(year, month);
+    if (drivers.length > 0) {
+      // Mark sidebar dot
+      const ncItem = document.getElementById('item-nc-' + year + '-' + month);
+      if (ncItem) { ncItem.classList.remove('no-data'); ncItem.classList.add('has-data'); }
+      // Render directly from aggregated driver rows
+      renderNCDashboardFromDrivers(drivers);
+    } else {
+      document.getElementById('ncNoDataTitle').textContent = 'Sem dados de NC para ' + month + ' ' + year;
+      document.getElementById('ncNoDataSub').textContent = 'Importe a planilha de não conformidades deste período.';
+    }
+  } catch(e) {
+    document.getElementById('ncNoDataTitle').textContent = 'Erro ao carregar NCs';
+    document.getElementById('ncNoDataSub').textContent = e.message;
+    console.error(e);
+  }
+}
+
+
+// ── MOT FOLDER TOGGLE ──
+const motFolderOpen = { '2025': false, '2026': false };
+
+function toggleMotFolder(year) {
+  const isOpen = motFolderOpen[year];
+  // Close all folders first
+  ['2025','2026'].forEach(y => {
+    motFolderOpen[y] = false;
+    const d = document.getElementById('mot-drivers-' + y);
+    const c = document.getElementById('mot-chev-' + y);
+    const btn = document.getElementById('mot-folder-btn-' + y);
+    if (d) d.style.display = 'none';
+    if (c) { c.style.transform = 'rotate(45deg) translateY(-3px)'; c.style.borderColor = 'var(--gray-3)'; }
+    if (btn) btn.style.color = 'var(--gray-2)';
+  });
+  if (!isOpen) {
+    motFolderOpen[year] = true;
+    const d = document.getElementById('mot-drivers-' + year);
+    const c = document.getElementById('mot-chev-' + year);
+    const btn = document.getElementById('mot-folder-btn-' + year);
+    if (d) d.style.display = 'flex';
+    if (c) { c.style.transform = 'rotate(-135deg) translateY(-3px)'; c.style.borderColor = 'var(--orange)'; }
+    if (btn) btn.style.color = 'var(--orange)';
+  }
+}
+
+// ── SELECT INDIVIDUAL DRIVER ──
+function selectDriver(year, driverName) {
+  closeAllPanels();
+  activeSection = 'motoristas';
+  currentMotYear = year;
+
+  // Highlight this driver item
+  document.querySelectorAll('.mot-driver-item').forEach(i => i.classList.remove('active'));
+  // Find and highlight by matching button text
+  document.querySelectorAll('#mot-drivers-' + year + ' .mot-driver-item').forEach(item => {
+    const btn = item.querySelector('.month-btn');
+    if (btn && btn.textContent.trim() === driverName) item.classList.add('active');
+  });
+
+  // Keep folder open and mot year open
+  document.querySelectorAll('.nav-year').forEach(y => y.classList.remove('open'));
+  document.querySelectorAll('.nav-year-header').forEach(h => h.classList.remove('active'));
+  const yearEl = document.getElementById('mot-year-arquivos');
+  if (yearEl) { yearEl.classList.add('open'); yearEl.querySelector('.nav-year-header').classList.add('active'); }
+  motFolderOpen[year] = true;
+  const d = document.getElementById('mot-drivers-' + year);
+  const c = document.getElementById('mot-chev-' + year);
+  const btn = document.getElementById('mot-folder-btn-' + year);
+  if (d) d.style.display = 'flex';
+  if (c) { c.style.transform = 'rotate(-135deg) translateY(-3px)'; c.style.borderColor = 'var(--orange)'; }
+  if (btn) btn.style.color = 'var(--orange)';
+
+  document.getElementById('motPage').classList.add('show');
+  document.getElementById('topbarTitle').textContent = driverName;
+  document.getElementById('topbarSub').textContent = 'Ficha individual do motorista — ' + year;
+  document.getElementById('periodBadge').textContent = 'MOT ' + year;
+  document.getElementById('motHeroTitle').textContent = driverName;
+  document.getElementById('motHeroSub').textContent = 'Registros operacionais de ' + year;
+
+  // Show driver profile (from loaded data or empty)
+  const data = motData[year] || [];
+  const driverRows = data.filter(r => {
+    const nameCol = Object.values(r)[0];
+    return String(nameCol||'').trim().toUpperCase() === driverName.toUpperCase();
+  });
+  if (driverRows.length > 0) {
+    renderMotDashboard(driverRows, year, driverName);
+  } else {
+    document.getElementById('motNoData').style.display = 'flex';
+    document.getElementById('motDashboard').style.display = 'none';
+    document.getElementById('motNoDataTitle').textContent = driverName;
+    document.getElementById('motNoDataSub').textContent = 'Importe o arquivo de Motoristas ' + year + ' para ver os dados deste motorista. Clique no botão acima.';
+  }
+}
+
+// ── SELECT MOTORISTAS ──
+function selectMotoristas(year) {
+  closeAllPanels();
+  activeSection = 'motoristas';
+  currentMotYear = year;
+  // Highlight item
+  document.querySelectorAll('[id^="mot-item-"]').forEach(i => i.classList.remove('active'));
+  const item = document.getElementById('mot-item-' + year);
+  if (item) item.classList.add('active');
+  // Open mot year
+  document.querySelectorAll('.nav-year').forEach(y => y.classList.remove('open'));
+  document.querySelectorAll('.nav-year-header').forEach(h => h.classList.remove('active'));
+  const yearEl = document.getElementById('mot-year-arquivos');
+  if (yearEl) { yearEl.classList.add('open'); yearEl.querySelector('.nav-year-header').classList.add('active'); }
+  document.getElementById('motPage').classList.add('show');
+  document.getElementById('topbarTitle').textContent = 'Motoristas — Arquivos ' + year;
+  document.getElementById('topbarSub').textContent = 'Cadastro e registros operacionais do quadro de motoristas';
+  document.getElementById('periodBadge').textContent = 'MOT ' + year;
+  document.getElementById('motHeroTitle').textContent = 'Arquivos ' + year;
+  document.getElementById('motHeroSub').textContent = 'Registros do quadro de motoristas — ' + year;
+  if (motData[year] && motData[year].length > 0) {
+    renderMotDashboard(motData[year], year);
+  } else {
+    document.getElementById('motNoData').style.display = 'flex';
+    document.getElementById('motDashboard').style.display = 'none';
+    document.getElementById('motNoDataTitle').textContent = 'Arquivos de Motoristas ' + year;
+    document.getElementById('motNoDataSub').textContent = 'Importe a planilha com os dados do quadro de motoristas de ' + year + '.';
+  }
+}
+
+// ── NC UPLOAD ──
+let pendingNCKey = null, pendingNCYear = null, pendingNCMonth = null;
+let pendingMotYear = null;
+
+function triggerNCUpload() {
+  if (!currentNCYear) { showAlert('Selecione um período de NC antes de importar.'); return; }
+  pendingNCYear = currentNCYear; pendingNCMonth = currentNCMonth;
+  pendingNCKey = currentNCYear + '-' + currentNCMonth;
+  document.getElementById('fileInput').click();
+}
+
+function triggerNCUploadForKey(key, year, month) {
+  pendingNCYear = year; pendingNCMonth = month;
+  pendingNCKey = year + '-' + month;
+  document.getElementById('fileInput').click();
+}
+
+function triggerMotUpload() {
+  if (!currentMotYear) { showAlert('Selecione Arquivos 2025 ou 2026 antes de importar.'); return; }
+  pendingMotYear = currentMotYear;
+  document.getElementById('fileInput').click();
+}
+
+// ── RENDER NC DASHBOARD ──
+// ── RENDER NC FROM ALREADY-AGGREGATED DRIVERS (loaded from Supabase) ──
+function renderNCDashboardFromDrivers(drivers) {
+  document.getElementById('ncNoData').style.display = 'none';
+  document.getElementById('ncDashboard').style.display = 'block';
+
+  const totalNCs      = drivers.reduce((s,d) => s + d.total, 0);
+  const totalMotInvol = drivers.filter(d => d.total > 0).length;
+  const totalMotores  = drivers.length;
+  const maxNcDriver   = [...drivers].sort((a,b)=>b.total-a.total)[0] || {};
+  const totDir  = drivers.reduce((s,d) => s + d.direcao,    0);
+  const totAlim = drivers.reduce((s,d) => s + d.alimenta,   0);
+  const totInter= drivers.reduce((s,d) => s + d.interjourn, 0);
+  const totExc  = drivers.reduce((s,d) => s + d.excesso,    0);
+  const sortedDrivers = [...drivers].sort((a,b)=>b.total-a.total);
+
+  document.getElementById('ncKpiGrid').innerHTML = `
+    <div class="kpi-card red"><div class="kpi-label">Total de NCs</div><div class="kpi-value">${totalNCs}</div><div class="kpi-sub">ocorrências no período</div><div class="kpi-icon">⚠️</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">Motoristas com NC</div><div class="kpi-value">${totalMotInvol}<span style="font-size:16px;font-weight:400;color:var(--gray-3)"> / ${totalMotores}</span></div><div class="kpi-sub">do total analisado</div><div class="kpi-icon">🚛</div></div>
+    <div class="kpi-card orange"><div class="kpi-label">Maior Incidência</div><div class="kpi-value" style="font-size:18px;line-height:1.2">${maxNcDriver.nome?maxNcDriver.nome.split(' ')[0]:'—'}</div><div class="kpi-sub">${maxNcDriver.total||0} NCs registradas</div><div class="kpi-icon">🏆</div></div>
+    <div class="kpi-card green"><div class="kpi-label">Sem Ocorrências</div><div class="kpi-value">${totalMotores-totalMotInvol}</div><div class="kpi-sub">motoristas conformes</div><div class="kpi-icon">✅</div></div>`;
+
+  const top10 = sortedDrivers.slice(0,10);
+  const ctx1 = document.getElementById('ncChartBar').getContext('2d');
+  if (ncChartBar) ncChartBar.destroy();
+  ncChartBar = new Chart(ctx1, {
+    type:'bar',
+    data:{ labels:top10.map(d=>d.nome.split(' ')[0]),
+      datasets:[
+        {label:'Dir. Contínua',   data:top10.map(d=>d.direcao),    backgroundColor:'rgba(255,71,87,0.75)',  borderRadius:3},
+        {label:'Alimentação',     data:top10.map(d=>d.alimenta),   backgroundColor:'rgba(255,159,67,0.75)', borderRadius:3},
+        {label:'Interjornada',    data:top10.map(d=>d.interjourn), backgroundColor:'rgba(26,159,224,0.75)', borderRadius:3},
+        {label:'Excesso Jornada', data:top10.map(d=>d.excesso),    backgroundColor:'rgba(168,85,247,0.75)', borderRadius:3},
+      ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#c8dcea',font:{family:'Barlow',size:10},boxWidth:10,padding:10}}},scales:{x:{stacked:true,ticks:{color:'#7ea8c4',font:{family:'Barlow',size:10}},grid:{color:'rgba(255,71,87,0.06)'}},y:{stacked:true,ticks:{color:'#7ea8c4',font:{family:'Barlow',size:10}},grid:{color:'rgba(255,71,87,0.06)'}}}}
+  });
+
+  const ctx2 = document.getElementById('ncChartDoughnut').getContext('2d');
+  if (ncChartDoughnut) ncChartDoughnut.destroy();
+  ncChartDoughnut = new Chart(ctx2, {
+    type:'doughnut',
+    data:{labels:['Direção Contínua','Alimentação','Interjornada','Excesso Jornada'],
+      datasets:[{data:[totDir,totAlim,totInter,totExc],backgroundColor:['rgba(255,71,87,0.82)','rgba(255,159,67,0.82)','rgba(26,159,224,0.82)','rgba(168,85,247,0.82)'],borderWidth:0,hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{color:'#c8dcea',font:{family:'Barlow',size:10},boxWidth:10,padding:10}}}}
+  });
+
+  // Store for search/filter (using driver format)
+  ncAllRows = sortedDrivers;
+  renderNCTable(sortedDrivers);
+}
+
+// ── NC COLUMN DETECTOR ──
+function detectNCColumns(rows) {
+  if (!rows.length) return {};
+  const keys = Object.keys(rows[0]);
+  const map = {};
+  keys.forEach(k => {
+    const n = k.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    if (!map.nome       && /nome|motorista|driver/.test(n))           map.nome = k;
+    if (!map.direcao    && /dire|contin/.test(n))                      map.direcao = k;
+    if (!map.alimenta   && /alim|refei|feed/.test(n))                  map.alimenta = k;
+    if (!map.interjourn && /inter|descanso|repouso|rest/.test(n))      map.interjourn = k;
+    if (!map.excesso    && /exces|jornada|excess|over/.test(n))        map.excesso = k;
+    if (!map.total      && /total/.test(n))                            map.total = k;
+  });
+  // positional fallback
+  if (!map.nome)       map.nome       = keys[0];
+  if (!map.direcao)    map.direcao    = keys[1];
+  if (!map.alimenta)   map.alimenta   = keys[2];
+  if (!map.interjourn) map.interjourn = keys[3];
+  if (!map.excesso)    map.excesso    = keys[4];
+  if (!map.total)      map.total      = keys[5];
+  return map;
+}
+
+function getNCVal(row, col) {
+  if (!col) return 0;
+  const v = row[col];
+  if (v === '' || v === null || v === undefined) return 0;
+  const n = parseInt(v);
+  return isNaN(n) ? 0 : n;
+}
+
+function ncBadge(val) {
+  if (val === 0) return `<span class="pill" style="background:rgba(0,214,143,0.1);color:var(--green);min-width:32px;text-align:center">0</span>`;
+  const col = val === 1 ? 'rgba(255,159,67,0.75)' : '#ff6b7a';
+  const bg  = val === 1 ? 'rgba(255,159,67,0.12)'  : 'rgba(255,71,87,0.12)';
+  return `<span class="pill" style="background:${bg};color:${col};min-width:32px;text-align:center">${val}</span>`;
+}
+
+function renderNCDashboard(rows) {
+  document.getElementById('ncNoData').style.display = 'none';
+  document.getElementById('ncDashboard').style.display = 'block';
+  ncAllRows = rows;
+
+  const colMap = detectNCColumns(rows);
+
+  // ── Aggregate: one row per motorista ──
+  const byMot = {};
+  rows.forEach(r => {
+    const name = String(r[colMap.nome] || '').trim() || 'Desconhecido';
+    if (!byMot[name]) byMot[name] = { nome:name, direcao:0, alimenta:0, interjourn:0, excesso:0 };
+    byMot[name].direcao    += getNCVal(r, colMap.direcao);
+    byMot[name].alimenta   += getNCVal(r, colMap.alimenta);
+    byMot[name].interjourn += getNCVal(r, colMap.interjourn);
+    byMot[name].excesso    += getNCVal(r, colMap.excesso);
+    // If spreadsheet already has a total col use it, else compute
+    if (colMap.total && getNCVal(r, colMap.total) > 0) {
+      byMot[name].total = (byMot[name].total || 0) + getNCVal(r, colMap.total);
+    }
+  });
+
+  // Compute totals per motorista
+  const drivers = Object.values(byMot).map(d => ({
+    ...d,
+    total: d.total || (d.direcao + d.alimenta + d.interjourn + d.excesso)
+  })).sort((a,b) => b.total - a.total);
+
+  const totalNCs      = drivers.reduce((s,d) => s + d.total, 0);
+  const totalMotInvol = drivers.filter(d => d.total > 0).length;
+  const totalMotores  = drivers.length;
+  const maxNcDriver   = drivers[0] || {};
+  const totDir  = drivers.reduce((s,d) => s + d.direcao,    0);
+  const totAlim = drivers.reduce((s,d) => s + d.alimenta,   0);
+  const totInter= drivers.reduce((s,d) => s + d.interjourn, 0);
+  const totExc  = drivers.reduce((s,d) => s + d.excesso,    0);
+
+  // ── KPIs ──
+  document.getElementById('ncKpiGrid').innerHTML = `
+    <div class="kpi-card red">
+      <div class="kpi-label">Total de NCs</div>
+      <div class="kpi-value">${totalNCs}</div>
+      <div class="kpi-sub">ocorrências no período</div>
+      <div class="kpi-icon">⚠️</div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="kpi-label">Motoristas com NC</div>
+      <div class="kpi-value">${totalMotInvol}<span style="font-size:16px;font-weight:400;color:var(--gray-3)"> / ${totalMotores}</span></div>
+      <div class="kpi-sub">do total analisado</div>
+      <div class="kpi-icon">🚛</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-label">Maior Incidência</div>
+      <div class="kpi-value" style="font-size:18px;line-height:1.2">${maxNcDriver.nome ? maxNcDriver.nome.split(' ')[0] : '—'}</div>
+      <div class="kpi-sub">${maxNcDriver.total || 0} NCs registradas</div>
+      <div class="kpi-icon">🏆</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Sem Ocorrências</div>
+      <div class="kpi-value">${totalMotores - totalMotInvol}</div>
+      <div class="kpi-sub">motoristas conformes</div>
+      <div class="kpi-icon">✅</div>
+    </div>`;
+
+  // ── Chart: NCs por motorista (top 10) stacked by type ──
+  const top10 = drivers.slice(0, 10);
+  const ctx1 = document.getElementById('ncChartBar').getContext('2d');
+  if (ncChartBar) ncChartBar.destroy();
+  ncChartBar = new Chart(ctx1, {
+    type: 'bar',
+    data: {
+      labels: top10.map(d => d.nome.split(' ')[0]),
+      datasets: [
+        { label:'Dir. Contínua',    data: top10.map(d=>d.direcao),    backgroundColor:'rgba(255,71,87,0.75)',  borderRadius:3 },
+        { label:'Alimentação',      data: top10.map(d=>d.alimenta),   backgroundColor:'rgba(255,159,67,0.75)', borderRadius:3 },
+        { label:'Interjornada',     data: top10.map(d=>d.interjourn), backgroundColor:'rgba(26,159,224,0.75)', borderRadius:3 },
+        { label:'Excesso Jornada',  data: top10.map(d=>d.excesso),    backgroundColor:'rgba(168,85,247,0.75)', borderRadius:3 },
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins: { legend:{ labels:{ color:'#c8dcea', font:{family:'Barlow',size:10}, boxWidth:10, padding:10 } } },
+      scales: {
+        x: { stacked:true, ticks:{color:'#7ea8c4',font:{family:'Barlow',size:10}}, grid:{color:'rgba(255,71,87,0.06)'} },
+        y: { stacked:true, ticks:{color:'#7ea8c4',font:{family:'Barlow',size:10}}, grid:{color:'rgba(255,71,87,0.06)'} }
+      }
+    }
+  });
+
+  // ── Chart: Doughnut by NC type totals ──
+  const ctx2 = document.getElementById('ncChartDoughnut').getContext('2d');
+  if (ncChartDoughnut) ncChartDoughnut.destroy();
+  ncChartDoughnut = new Chart(ctx2, {
+    type:'doughnut',
+    data:{
+      labels:['Direção Contínua','Alimentação','Interjornada','Excesso Jornada'],
+      datasets:[{ data:[totDir,totAlim,totInter,totExc],
+        backgroundColor:['rgba(255,71,87,0.82)','rgba(255,159,67,0.82)','rgba(26,159,224,0.82)','rgba(168,85,247,0.82)'],
+        borderWidth:0, hoverOffset:6 }]
+    },
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',
+      plugins:{legend:{position:'bottom',labels:{color:'#c8dcea',font:{family:'Barlow',size:10},boxWidth:10,padding:10}}}}
+  });
+
+  renderNCTable(drivers);
+}
+
+function renderNCTable(drivers) {
+  const maxTotal = Math.max(...drivers.map(d=>d.total), 1);
+  document.getElementById('ncTableBody').innerHTML = drivers.map(d => {
+    const initials = d.nome.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    const pct = Math.round((d.total / maxTotal) * 100);
+    const totalColor = d.total === 0 ? 'var(--green)' : d.total <= 2 ? 'var(--orange)' : 'var(--red)';
+    return `<tr>
+      <td class="driver-name">
+        <div class="driver-avatar" style="background:linear-gradient(135deg,#ff4757,#c0392b)">${initials}</div>
+        ${d.nome}
+      </td>
+      <td style="text-align:center">${ncBadge(d.direcao)}</td>
+      <td style="text-align:center">${ncBadge(d.alimenta)}</td>
+      <td style="text-align:center">${ncBadge(d.interjourn)}</td>
+      <td style="text-align:center">${ncBadge(d.excesso)}</td>
+      <td style="text-align:center">
+        <div style="display:flex;align-items:center;justify-content:center;gap:8px">
+          <span class="num" style="color:${totalColor};min-width:24px;text-align:center">${d.total}</span>
+          <div class="nc-track" style="max-width:60px"><div class="nc-fill" style="width:${pct}%;background:${totalColor}"></div></div>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterNCTable() {
+  const q = document.getElementById('ncSearchInput').value.toLowerCase();
+  // Re-aggregate and filter
+  const colMap = detectNCColumns(ncAllRows);
+  const byMot = {};
+  ncAllRows.forEach(r => {
+    const name = String(r[colMap.nome] || '').trim() || 'Desconhecido';
+    if (!name.toLowerCase().includes(q)) return;
+    if (!byMot[name]) byMot[name] = { nome:name, direcao:0, alimenta:0, interjourn:0, excesso:0 };
+    byMot[name].direcao    += getNCVal(r, colMap.direcao);
+    byMot[name].alimenta   += getNCVal(r, colMap.alimenta);
+    byMot[name].interjourn += getNCVal(r, colMap.interjourn);
+    byMot[name].excesso    += getNCVal(r, colMap.excesso);
+  });
+  const drivers = Object.values(byMot).map(d => ({
+    ...d, total: d.total || (d.direcao + d.alimenta + d.interjourn + d.excesso)
+  })).sort((a,b) => b.total - a.total);
+  renderNCTable(drivers);
+}
+
+// ── RENDER MOTORISTAS DASHBOARD ──
+function renderMotDashboard(rows, year) {
+  document.getElementById('motNoData').style.display = 'none';
+  document.getElementById('motDashboard').style.display = 'block';
+  motAllRows = rows;
+  const total = rows.length;
+  const cols = Object.keys(rows[0] || {});
+  document.getElementById('motTableTitle').textContent = 'Motoristas — ' + year + ' (' + total + ' registros)';
+  document.getElementById('motKpiGrid').innerHTML = `
+    <div class="kpi-card blue"><div class="kpi-label">Total de Motoristas</div><div class="kpi-value">${total}</div><div class="kpi-sub">registros importados</div><div class="kpi-icon">🚛</div></div>
+    <div class="kpi-card green"><div class="kpi-label">Colunas</div><div class="kpi-value">${cols.length}</div><div class="kpi-sub">campos no arquivo</div><div class="kpi-icon">📋</div></div>
+    <div class="kpi-card orange"><div class="kpi-label">Ano de Referência</div><div class="kpi-value">${year}</div><div class="kpi-sub">período do arquivo</div><div class="kpi-icon">📅</div></div>`;
+  // Build dynamic table head
+  document.getElementById('motTableHead').innerHTML = cols.map(c => `<th>${c}</th>`).join('');
+  renderMotTable(rows, cols);
+}
+
+function renderMotTable(rows, cols) {
+  const c = cols || Object.keys(rows[0] || {});
+  document.getElementById('motTableBody').innerHTML = rows.map((r,i) => {
+    const cells = c.map((col,ci) => {
+      if (ci === 0) {
+        const initials = String(r[col]||'').split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+        return `<td class="driver-name"><div class="driver-avatar" style="background:linear-gradient(135deg,var(--orange),#c0770a)">${initials||i+1}</div>${r[col]||'—'}</td>`;
+      }
+      return `<td style="color:var(--gray-2);font-size:13px">${r[col]||'—'}</td>`;
+    }).join('');
+    return `<tr>${cells}</tr>`;
+  }).join('');
+}
+
+function filterMotTable() {
+  const q = document.getElementById('motSearchInput').value.toLowerCase();
+  const cols = Object.keys(motAllRows[0] || {});
+  const filtered = motAllRows.filter(r => cols.some(c => String(r[c]||'').toLowerCase().includes(q)));
+  renderMotTable(filtered, cols);
+}
+
+// ── SIGCORJ PANEL ──
+let sigcorjOpen = false;
+function toggleSigcorj() {
+  sigcorjOpen = !sigcorjOpen;
+  const page = document.getElementById('sigcorjPage');
+  const btn  = document.getElementById('sigcorjSideBtn');
+  const empty = document.getElementById('emptyState');
+  const noData = document.getElementById('noDataState');
+  const dash  = document.getElementById('dashboard');
+
+  if (sigcorjOpen) {
+    page.classList.add('show');
+    btn.classList.add('active');
+    empty.style.display = 'none';
+    noData.classList.remove('show');
+    dash.style.display = 'none';
+    document.getElementById('topbarTitle').textContent = 'SIGCORJ — Sobre o Sistema';
+    document.getElementById('topbarSub').textContent = 'Sistema Integrado de Governança e Controle de Jornada';
+    document.getElementById('periodBadge').textContent = 'SIGCORJ';
+    // Deactivate month items
+    document.querySelectorAll('.nav-month-item').forEach(i => i.classList.remove('active'));
+  } else {
+    page.classList.remove('show');
+    btn.classList.remove('active');
+    // Restore current period view
+    if (currentYear && currentMonth) {
+      document.getElementById('topbarTitle').textContent = 'Jornada — ' + currentMonth + ' ' + currentYear;
+      document.getElementById('topbarSub').textContent = 'Indicadores de horas extras e conformidade';
+      document.getElementById('periodBadge').textContent = currentMonth.substring(0,3) + ' ' + currentYear;
+      loadPeriodData(currentYear + '-' + currentMonth);
+    } else {
+      document.getElementById('topbarTitle').textContent = 'Dashboard de Jornada';
+      document.getElementById('topbarSub').textContent = 'Selecione um mês no menu e importe a planilha';
+      document.getElementById('periodBadge').textContent = '—';
+      showEmpty();
+    }
+  }
+}
+
+// ── INIT ──
+async function init() {
+  buildSidebar();
+  buildNCsidebar();
+  // Load all periods that have data in Supabase and mark sidebar dots
+  try {
+    const [periods, ncPeriods] = await Promise.all([
+      dbLoadAllPeriods(),
+      dbLoadAllNCPeriods()
+    ]);
+    periods.forEach(({ ano, mes }) => markMonthHasData(ano + '-' + mes));
+    ncPeriods.forEach(({ ano, mes }) => {
+      const ncItem = document.getElementById('item-nc-' + ano + '-' + mes);
+      if (ncItem) { ncItem.classList.remove('no-data'); ncItem.classList.add('has-data'); }
+    });
+    const total = periods.length + ncPeriods.length;
+    if (total > 0) {
+      showAlert('☁️ ' + periods.length + ' período(s) de jornada e ' + ncPeriods.length + ' de NC encontrados na nuvem.', true);
+    }
+  } catch(e) {
+    console.warn('Não foi possível conectar ao Supabase:', e.message);
+  }
+}
+init();
+</script>
+</body>
+</html>

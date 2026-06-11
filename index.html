@@ -11177,7 +11177,7 @@ async function dbSaveMultas(ano, mes, categoria, rows) {
     const cols = Object.keys(r);
     return {
       ano, mes, categoria,
-      motorista:       String(r[cols.find(function(c){var l=c.toLowerCase();return l.includes('condutor')||l.includes('infrator')||l.includes('motorista')||l.includes('nome');}) || cols[0]]||''),
+      motorista:       String(r[cols[0]]||''),
       placa:           String(r[cols.find(c=>c.toLowerCase().includes('placa'))||cols[1]]||''),
       data_infracao:   String(r[cols.find(c=>c.toLowerCase().includes('data'))||cols[2]]||''),
       tipo_infracao:   String(r[cols.find(c=>c.toLowerCase().includes('tipo')||c.toLowerCase().includes('infra'))||cols[3]]||''),
@@ -12205,7 +12205,8 @@ function renderNCDashboard(data) {
     { label:'Motoristas c/ NC', value: motoristasNC, cls:'orange', icon:'👤' },
     { label:'Direção Contínua', value: totalDir, cls:'red', icon:'🕐' },
     { label:'Excesso Jornada', value: totalExc, cls:'orange', icon:'📊' },
-
+  ].map(function(k){
+    return '<div class="kpi-card '+k.cls+'">'
       +'<div class="kpi-icon">'+k.icon+'</div>'
       +'<div class="kpi-label">'+k.label+'</div>'
       +'<div class="kpi-value">'+k.value+'</div>'
@@ -12360,84 +12361,25 @@ function renderGenDashboard(page, data, label) {
 
   // KPI
   var kpiEl = document.getElementById(kpiId);
-  // Build KPIs - add total valor for multas
-  var kpiCards = [{ label:'Total Registros', value: data.length, cls:'blue' }];
-  if (page === 'multas') {
-    var valorCol = cols.find(function(c){ return c.toLowerCase().includes('valor'); });
-    if (valorCol) {
-      var totVal = data.reduce(function(s,r){ return s+(parseFloat(r[valorCol])||0); },0);
-      kpiCards.push({ label:'Valor Total', value:'R$ '+totVal.toLocaleString('pt-BR',{minimumFractionDigits:2}), cls:'red' });
-    }
-    var motColK = cols.find(function(c){ var l=c.toLowerCase(); return l.includes('condutor')||l.includes('infrator')||l==='motorista'; });
-    if (motColK) {
-      var uniqueMots = new Set(data.map(function(r){ return r[motColK]; })).size;
-      kpiCards.push({ label:'Motoristas', value: uniqueMots, cls:'orange' });
-    }
-  } else if (page === 'comb') {
-    var mediaCol2 = cols.find(function(c){ return c.toLowerCase().includes('media')||c.toLowerCase().includes('km'); });
-    if (mediaCol2) {
-      var vals = data.map(function(r){ return parseFloat(r[mediaCol2])||0; }).filter(function(v){ return v>0; });
-      var avg = vals.length ? (vals.reduce(function(a,b){return a+b;},0)/vals.length).toFixed(1) : '—';
-      kpiCards.push({ label:'Média km/l', value: avg+' km/l', cls:'orange' });
-    }
-  }
-  kpiCards.push({ label:'Período', value: label, cls:'green' });
-  if (kpiEl) kpiEl.innerHTML = kpiCards.map(function(k){
-    return '<div class="kpi-card '+k.cls+'"><div class="kpi-label">'+k.label+'</div><div class="kpi-value" style="font-size:18px">'+k.value+'</div></div>';
-  }).join('');
+  if (kpiEl) kpiEl.innerHTML = [
+    { label:'Total Registros', value: data.length, cls:'blue' },
+    { label:'Colunas', value: cols.length, cls:'green' },
+    { label:'Período', value: label, cls:'orange' },
+  ].map(function(k){
     return '<div class="kpi-card '+k.cls+'">'
       +'<div class="kpi-label">'+k.label+'</div>'
       +'<div class="kpi-value" style="font-size:20px">'+k.value+'</div>'
       +'</div>';
   }).join('');
 
-  // For multas: define display columns in proper order, skip uuid id
-  var displayCols = cols;
-  if (page === 'multas') {
-    var multasPriority = ['motorista','condutor','infrator','placa','data_infracao','data','tipo_infracao','tipo','valor','status','observacao','obs'];
-    var ordered = [];
-    multasPriority.forEach(function(p){ 
-      var found = cols.find(function(c){ return c.toLowerCase().includes(p); });
-      if (found && ordered.indexOf(found)===-1) ordered.push(found);
-    });
-    // add remaining cols except id/uuid
-    cols.forEach(function(c){ 
-      if (ordered.indexOf(c)===-1 && !c.toLowerCase().includes('uuid') && c !== 'id' && c !== 'ano' && c !== 'mes' && c !== 'categoria' && c !== 'created_at') 
-        ordered.push(c); 
-    });
-    displayCols = ordered.length > 0 ? ordered : cols;
-  }
-  if (page === 'comb') {
-    var combPriority = ['motorista','nome','placa','km_rodados','km','litros','litros_abastecidos','media_km_litro','media','valor_abastecimento','valor'];
-    var ordered2 = [];
-    combPriority.forEach(function(p){ 
-      var found = cols.find(function(c){ return c.toLowerCase().includes(p); });
-      if (found && ordered2.indexOf(found)===-1) ordered2.push(found);
-    });
-    cols.forEach(function(c){ 
-      if (ordered2.indexOf(c)===-1 && !c.toLowerCase().includes('uuid') && c !== 'id' && c !== 'ano' && c !== 'mes' && c !== 'categoria' && c !== 'created_at') 
-        ordered2.push(c); 
-    });
-    displayCols = ordered2.length > 0 ? ordered2 : cols;
-  }
-
   // Table head
   var thead = document.getElementById(theadId);
-  if (thead) thead.innerHTML = displayCols.map(function(c){ 
-    return '<th>'+c.replace(/_/g,' ').toUpperCase()+'</th>'; 
-  }).join('');
+  if (thead) thead.innerHTML = cols.map(function(c){ return '<th>'+c+'</th>'; }).join('');
 
   // Table body
   var tbody = document.getElementById(tbodyId);
   if (tbody) tbody.innerHTML = data.slice(0,200).map(function(r){
-    return '<tr>'+displayCols.map(function(c){ 
-      var val = String(r[c]||'');
-      // Format valor as currency
-      if (c.toLowerCase().includes('valor') && !isNaN(parseFloat(val)) && val !== '') {
-        return '<td class="num">R$ '+parseFloat(val).toLocaleString("pt-BR",{minimumFractionDigits:2})+'</td>';
-      }
-      return '<td style="color:var(--gray-2);font-size:12px">'+val+'</td>'; 
-    }).join('')+'</tr>';
+    return '<tr>'+cols.map(function(c){ return '<td>'+String(r[c]||'')+'</td>'; }).join('')+'</tr>';
   }).join('');
 
   // Title
@@ -12447,7 +12389,7 @@ function renderGenDashboard(page, data, label) {
   // Bar chart: try to find a name col and numeric col
   var ctxBar = document.getElementById(barId);
   if (ctxBar) {
-    var nameCol = cols.find(function(c){ var l=c.toLowerCase(); return l.includes('condutor')||l.includes('infrator')||l==='motorista'||l.includes('nome'); }) || cols[0];
+    var nameCol = cols.find(function(c){ return c.toLowerCase().includes('nome')||c.toLowerCase().includes('motorista'); }) || cols[0];
     var numCol  = cols.find(function(c){ var v=data[0][c]; return typeof v==='number'||(!isNaN(parseFloat(v))&&v!==''); }) || null;
     if (numCol && numCol !== nameCol) {
       var top = data.slice().sort(function(a,b){ return (parseFloat(b[numCol])||0)-(parseFloat(a[numCol])||0); }).slice(0,12);
@@ -12479,7 +12421,8 @@ function renderMotDashboard(data, year) {
   if (kpiEl) kpiEl.innerHTML = [
     { label:'Total Motoristas', value: data.length, cls:'blue', icon:'👤' },
     { label:'Ano', value: year, cls:'orange', icon:'📅' },
-
+  ].map(function(k){
+    return '<div class="kpi-card '+k.cls+'">'
       +'<div class="kpi-icon">'+k.icon+'</div>'
       +'<div class="kpi-label">'+k.label+'</div>'
       +'<div class="kpi-value">'+k.value+'</div>'

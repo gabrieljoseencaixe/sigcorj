@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="pt-BR" translate="no">
+<head>
+<meta charset="UTF-8">
+<meta name="google" content="notranslate">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIGCORJ — Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700;800;900&family=Barlow+Condensed:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy:#0a1628;--navy-mid:#0f2044;--navy-light:#1a3260;
+  --blue:#1a9fe0;--blue-bright:#2dbfff;
+  --white:#ffffff;--gray-2:#c8dcea;--gray-3:#7ea8c4;
+  --green:#00d68f;--red:#ff4757;
+  --radius:14px;--radius-sm:8px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'Barlow',sans-serif;background:var(--navy);color:var(--white)}
+
+body {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:100vh;
+  background: radial-gradient(ellipse at 30% 20%, rgba(26,159,224,0.12) 0%, transparent 60%),
+              radial-gradient(ellipse at 80% 80%, rgba(45,191,255,0.07) 0%, transparent 50%),
+              var(--navy);
+}
+
+.login-card {
+  width:100%;
+  max-width:420px;
+  background: rgba(15,32,68,0.9);
+  border:1px solid rgba(26,159,224,0.2);
+  border-radius:20px;
+  padding:48px 44px 44px;
+  backdrop-filter:blur(20px);
+  box-shadow: 0 24px 64px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04) inset;
+}
+
+.logo-area {
+  text-align:center;
+  margin-bottom:36px;
+}
+
+.logo-icon {
+  width:56px;height:56px;
+  background:linear-gradient(135deg,var(--blue),var(--blue-bright));
+  border-radius:14px;
+  display:inline-flex;align-items:center;justify-content:center;
+  margin-bottom:16px;
+  box-shadow:0 8px 24px rgba(26,159,224,0.4);
+}
+
+.logo-area h1 {
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:26px;font-weight:800;letter-spacing:1px;
+  color:var(--white);
+}
+
+.logo-area p {
+  font-size:12px;color:var(--gray-3);margin-top:4px;letter-spacing:.4px;
+}
+
+.field {
+  margin-bottom:18px;
+}
+
+label {
+  display:block;
+  font-size:11px;font-weight:700;letter-spacing:.8px;
+  color:var(--gray-3);text-transform:uppercase;
+  margin-bottom:8px;
+}
+
+input[type=email], input[type=password] {
+  width:100%;
+  background:rgba(255,255,255,0.06);
+  border:1px solid rgba(26,159,224,0.25);
+  border-radius:var(--radius-sm);
+  color:var(--white);
+  font-family:'Barlow',sans-serif;
+  font-size:15px;
+  padding:12px 16px;
+  outline:none;
+  transition:border .2s,background .2s;
+}
+
+input[type=email]::placeholder, input[type=password]::placeholder {
+  color:rgba(126,168,196,0.5);
+}
+
+input[type=email]:focus, input[type=password]:focus {
+  border-color:var(--blue);
+  background:rgba(26,159,224,0.08);
+}
+
+.btn-login {
+  width:100%;
+  margin-top:8px;
+  padding:14px;
+  background:linear-gradient(135deg,var(--blue),var(--blue-bright));
+  color:var(--white);
+  border:none;
+  border-radius:var(--radius-sm);
+  font-family:'Barlow',sans-serif;
+  font-size:15px;font-weight:700;letter-spacing:.4px;
+  cursor:pointer;
+  transition:opacity .2s,transform .15s;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+
+.btn-login:hover:not(:disabled) { opacity:.9;transform:translateY(-1px); }
+.btn-login:disabled { opacity:.5;cursor:not-allowed;transform:none; }
+
+.btn-login .spinner {
+  width:16px;height:16px;
+  border:2px solid rgba(255,255,255,0.3);
+  border-top-color:white;
+  border-radius:50%;
+  animation:spin .7s linear infinite;
+  display:none;
+}
+.btn-login.loading .spinner { display:block; }
+.btn-login.loading .btn-text { opacity:.6; }
+
+@keyframes spin { to{transform:rotate(360deg)} }
+
+.error-msg {
+  margin-top:16px;
+  padding:12px 16px;
+  background:rgba(255,71,87,0.12);
+  border:1px solid rgba(255,71,87,0.35);
+  border-radius:var(--radius-sm);
+  color:#ff6b78;
+  font-size:13px;
+  display:none;
+  align-items:center;gap:8px;
+}
+
+.footer-note {
+  text-align:center;
+  margin-top:28px;
+  font-size:11px;color:rgba(126,168,196,0.45);
+  letter-spacing:.3px;
+}
+</style>
+</head>
+<body>
+
+<div class="login-card">
+  <div class="logo-area">
+    <div class="logo-icon">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2">
+        <rect x="3" y="3" width="7" height="7" rx="1"/>
+        <rect x="14" y="3" width="7" height="7" rx="1"/>
+        <rect x="3" y="14" width="7" height="7" rx="1"/>
+        <rect x="14" y="14" width="7" height="7" rx="1"/>
+      </svg>
+    </div>
+    <h1>SIGCORJ</h1>
+    <p>Sistema Integrado de Governança e Controle de Jornada</p>
+  </div>
+
+  <div class="field">
+    <label>E-mail</label>
+    <input type="email" id="email" placeholder="seu@email.com" autocomplete="username">
+  </div>
+
+  <div class="field">
+    <label>Senha</label>
+    <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+  </div>
+
+  <button class="btn-login" id="btnLogin" onclick="doLogin()">
+    <div class="spinner"></div>
+    <span class="btn-text">Entrar</span>
+  </button>
+
+  <div class="error-msg" id="errorMsg">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12" y2="16.5"/></svg>
+    <span id="errorText">Credenciais inválidas.</span>
+  </div>
+
+  <div class="footer-note">Encaixe Transportes &copy; 2026</div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://redbfzxpdbmojpocbtis.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJlZGJmenhwZGJtb2pwb2NidGlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NzIzOTUsImV4cCI6MjA5NjI0ODM5NX0.MBH4vNSQFHkwiZO6Si6Y2mYck4hCcVavYEUOEo90g9I';
+
+// Se já tem sessão válida, vai direto pro dashboard
+(async function checkExistingSession() {
+  try {
+    const stored = localStorage.getItem('sigcorj_session');
+    if (!stored) return;
+    const session = JSON.parse(stored);
+    if (!session || !session.access_token) return;
+    // Verifica se o token ainda é válido
+    const res = await fetch(SUPABASE_URL + '/auth/v1/user', {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + session.access_token
+      }
+    });
+    if (res.ok) {
+      window.location.replace('index.html');
+    }
+  } catch(e) {}
+})();
+
+document.getElementById('password').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') doLogin();
+});
+document.getElementById('email').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') document.getElementById('password').focus();
+});
+
+async function doLogin() {
+  var email    = document.getElementById('email').value.trim();
+  var password = document.getElementById('password').value;
+  var btn      = document.getElementById('btnLogin');
+  var errDiv   = document.getElementById('errorMsg');
+  var errText  = document.getElementById('errorText');
+
+  errDiv.style.display = 'none';
+
+  if (!email || !password) {
+    errText.textContent = 'Preencha e-mail e senha.';
+    errDiv.style.display = 'flex';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.classList.add('loading');
+
+  try {
+    const res = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY
+      },
+      body: JSON.stringify({ email: email, password: password })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      var msg = 'Credenciais inválidas.';
+      if (data && data.error_description) msg = data.error_description;
+      else if (data && data.message) msg = data.message;
+      errText.textContent = msg;
+      errDiv.style.display = 'flex';
+      btn.disabled = false;
+      btn.classList.remove('loading');
+      return;
+    }
+
+    // Salva sessão
+    localStorage.setItem('sigcorj_session', JSON.stringify({
+      access_token:  data.access_token,
+      refresh_token: data.refresh_token,
+      expires_at:    Date.now() + (data.expires_in * 1000),
+      user:          data.user
+    }));
+
+    window.location.replace('index.html');
+
+  } catch(e) {
+    errText.textContent = 'Erro de conexão. Tente novamente.';
+    errDiv.style.display = 'flex';
+    btn.disabled = false;
+    btn.classList.remove('loading');
+  }
+}
+</script>
+</body>
+</html>
